@@ -34,7 +34,8 @@
 ### Graduate students
 
 1. Download all current records from the "Donor" table and the "Other" table
-1. Update all students whose grade = 8. Set grade = "Alum", and school = "Graduated from BCD"
+1. Update all students whose grade = 8, and set grade = 9
+1. In addition, if the school of the 8th graders is BIS, set school to "ALUM"
 1. Upload these modified records to DonorPerfect
 
 ### Update data for existing donors
