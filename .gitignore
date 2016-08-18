@@ -92,3 +92,6 @@ ENV/
 *.csv
 *.xls
 *.xlsx
+
+# PyCharm
+.idea
