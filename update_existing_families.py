@@ -11,7 +11,6 @@ import sys
 # TODO: Instead of <output.csv>, take output folder so we can dump multiple files there
 # TODO: - I see 3 files: 1. Student updates/additions, 2. Donor updates, 3. New donors
 # TODO: Write out family-level updates (address changes etc). These will go to a separate file.
-# TODO: Don't emit row for existing students who haven't changed grade or school
 
 DP_REPORT_221_HEADERS = ['DONOR_ID', 'STU_LNAME', 'STU_FNAME', 'STU_NUMBER', 'SCHOOL', 'GRADE',
                          'FIRST_NAME', 'LAST_NAME', 'SP_FNAME', 'SP_LNAME',
@@ -79,19 +78,19 @@ with open(sys.argv[2], 'rb') as district_inputfile:
 dp_import_studentrecords = []
 for student_id in dp_records_multidict:
     for dp_record in dp_records_multidict[student_id]:
+        studentrecord = dp_record.copy()
         if student_id in district_records_dict:
             # Returning student
-            studentrecord = dp_record.copy()
             # Update current grade
             studentrecord['GRADE'] = district_records_dict[student_id]['Grade']
             # Update school
             studentrecord['SCHOOL'] = district_school_to_dp_school(district_records_dict[student_id]['School'])
-            dp_import_studentrecords.append(studentrecord)
         elif dp_record['GRADE'] == '8' and dp_record['SCHOOL'] == 'BIS':
-            # Graduation time
-            studentrecord = dp_record.copy()
             studentrecord['GRADE'] = '9'
             studentrecord['SCHOOL'] = 'ALUM'
+        else:
+            studentrecord['SCHOOL'] = 'NOBSD'
+        if dp_record != studentrecord:
             dp_import_studentrecords.append(studentrecord)
 
 # Build up students for each family
