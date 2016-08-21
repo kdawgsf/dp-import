@@ -21,6 +21,8 @@ Outputs (to current working directory):
                  Select Type of Records = Names, Addresses, Other Info
     02-donor-updates.csv: updates to existing donors. Import second:
                  TBD
+    03-newdonor-updates.csv: creates records for new donors. 
+        Import process TBD
     ''')
     sys.exit(1)
 
