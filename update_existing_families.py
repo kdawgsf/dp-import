@@ -170,16 +170,30 @@ for student_id in district_records_dict:
         #   (ii) this student is returning after a break from BSD, but somehow was given a new student ID
         # If either (i) or (ii) is true, then DP will not create a new record, but update the existing donor record, so we should be okay. 
         # At any rate, we have to prepare a new record for this donor, with several custom fields
-        print("Creating record for new donor w/ new student %s" % (student_id))
+        #print("Creating record for new donor w/ new student %s" % (student_id))
 
-        h_f_name = district_record['Parent 1 First Name']
-        w_f_name = district_record['Parent 2 First Name']
         h_l_name = district_record['Parent1 Last Name']
-        w_l_name = district_record['Parent 2 Last Name']
-        if w_l_name == h_l_name :
-            salutation = h_f_name + " and " + w_f_name + " " + w_l_name
+        if len(h_l_name) != 0: 
+            h_f_name = district_record['Parent 1 First Name']
+            w_f_name = district_record['Parent 2 First Name']
+            w_l_name = district_record['Parent 2 Last Name']
         else:
-            salutation = h_f_name + " " + h_l_name + " and " + w_f_name + " " + w_l_name
+            h_f_name = district_record['Parent 2 First Name']
+            h_l_name = district_record['Parent 2 Last Name']
+            w_f_name = ""
+            w_l_name = ""
+
+
+        if len(w_l_name) != 0:
+            if w_l_name == h_l_name :
+                salutation = h_f_name + " and " + w_f_name + " " + w_l_name
+            else:
+                salutation = h_f_name + " " + h_l_name + " and " + w_f_name + " " + w_l_name
+            informal_sal = h_f_name + " and " + w_f_name
+        else:
+            salutation = h_f_name + " " + h_l_name 
+            informal_sal = h_f_name 
+
 
         if len(district_record['Parent1Email']) == 0:
             email = district_record['Parent2Email']
@@ -193,7 +207,7 @@ for student_id in district_records_dict:
                 'SP_FNAME': w_f_name,
                 'SP_LNAME': w_l_name,
                 'SALUTATION': salutation,
-                'INFORMAL_SAL': h_f_name + " and " + w_f_name,
+                'INFORMAL_SAL': informal_sal,
                 'OPT_LINE': w_f_name + " " + w_l_name,
                 'ADDRESS': district_record['street'],
                 'CITY': district_record['city'],
@@ -265,3 +279,4 @@ newdonor_header = ['FIRST_NAME',
                 'OTHER_DATE' ]
 
 save_as_csv_file(newdonor_filename, newdonor_header, dp_import_newdonorrecords)
+print("Number of new donor records for upload = %d" % len(dp_import_newdonorrecords))
