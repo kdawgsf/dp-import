@@ -21,10 +21,11 @@ Outputs (to current working directory):
                  Select Type of Records = Names, Addresses, Other Info
     02-donor-updates.csv: updates to existing donors. Import second:
                  TBD
+    03-newdonor-updates.csv: creates records for new donors. 
+        Import process TBD
     ''')
     sys.exit(1)
 
-# TODO: Write out new donors
 # TODO: Write out family-level updates (address changes etc). These will go to 02-donor-updates.csv.
 
 DP_REPORT_221_HEADERS = ['DONOR_ID', 'STU_LNAME', 'STU_FNAME', 'STU_NUMBER', 'SCHOOL', 'GRADE',
@@ -38,6 +39,7 @@ DISTRICT_DATA_HEADERS = ['School', 'SystemID', 'Student Last Name', 'Student Fir
                          'Parent2Email', 'Guardian', 'GuardianDayPhone', 'GuardianEmail', 'Guardianship',
                          'Grade', 'entrycode', 'entrydate', 'exitdate', 'Family', 'Student', 'Family_Ident',
                          'enroll_status', 'Comment', 'PTA_BCE_Permit']
+SCHOOL_YEAR = 'SY2016-17'
 
 def validate_headers(filename, expected, actual):
     expected_set = set(expected)
@@ -77,12 +79,20 @@ def load_csv_file(filename, expected_headers):
             res.append(row)
     return res
 
+def save_as_csv_file(filename, header_fields, data): 
+    with open(filename, 'w') as outputfile:
+        writer = csv.DictWriter(outputfile, header_fields)
+        writer.writeheader()
+        for record in data:
+            writer.writerow(record)
+
 if len(sys.argv) != 3:
     usage()
 
 dp_report_221_filename = sys.argv[1]
 district_data_filename = sys.argv[2]
 student_updates_filename = '01-student-updates.csv'
+newdonor_filename = '03-newdonor-updates.csv'
 
 # Load dp data keyed off student number
 dp_records_multidict = defaultdict(list)
@@ -119,6 +129,7 @@ for key in district_records_dict:
     students_by_family_ident[family_ident].append(key)
 
 # Add new students for existing families
+dp_import_newdonorrecords = []
 for student_id in district_records_dict:
     district_record = district_records_dict[student_id]
     if student_id in dp_records_multidict:
@@ -149,8 +160,82 @@ for student_id in district_records_dict:
                         'OTHER_DATE': ''
                     }
                     dp_import_studentrecords.append(studentrecord)
+
     if len(donor_ids_encountered) == 0:
-        print("TODO Create record for new donor / new student %s and add to dp_import_studentrecords" % (student_id))
+        # At this point we know that: 
+        #   (a) this student isn't in DP (i.e., this is new student)
+        #   (b) this student doesn't have an sibling currently in BSD
+        # Chances are the donor is also new, unless 
+        #   (i) the donor has a kid that has graduated already OR, 
+        #   (ii) this student is returning after a break from BSD, but somehow was given a new student ID
+        # If either (i) or (ii) is true, then DP will not create a new record, but update the existing donor record, so we should be okay. 
+        # At any rate, we have to prepare a new record for this donor, with several custom fields
+        #print("Creating record for new donor w/ new student %s" % (student_id))
+
+        main_l_name = district_record['Parent1 Last Name']
+        if len(main_l_name) != 0: 
+            main_f_name = district_record['Parent 1 First Name']
+            spouse_f_name = district_record['Parent 2 First Name']
+            spouse_l_name = district_record['Parent 2 Last Name']
+        else:
+            main_f_name = district_record['Parent 2 First Name']
+            main_l_name = district_record['Parent 2 Last Name']
+            spouse_f_name = ""
+            spouse_l_name = ""
+
+
+        if len(spouse_l_name) != 0:
+            if spouse_l_name == main_l_name :
+                salutation = main_f_name + " and " + spouse_f_name + " " + spouse_l_name
+            else:
+                salutation = main_f_name + " " + main_l_name + " and " + spouse_f_name + " " + spouse_l_name
+            informal_sal = main_f_name + " and " + spouse_f_name
+        else:
+            salutation = main_f_name + " " + main_l_name 
+            informal_sal = main_f_name 
+
+
+        if len(district_record['Parent1Email']) == 0:
+            email = district_record['Parent2Email']
+        else:
+            email = district_record['Parent1Email']
+            
+            
+        newdonorrecord = {
+                'FIRST_NAME': main_f_name,
+                'LAST_NAME': main_l_name,
+                'SP_FNAME': spouse_f_name,
+                'SP_LNAME': spouse_l_name,
+                'SALUTATION': salutation,
+                'INFORMAL_SAL': informal_sal,
+                'OPT_LINE': spouse_f_name + " " + spouse_l_name,
+                'ADDRESS': district_record['street'],
+                'CITY': district_record['city'],
+                'STATE': district_record['state'],
+                'ZIP': district_record['zip'],
+                'ADDRESS_TYPE': 'HOME',
+                'EMAIL': email,
+                'SPOUSE_EMAIL': district_record['Parent2Email'],
+                'HOME_PHONE': district_record['home_phone'],
+                'MOBILE_PHONE': district_record['Parent1DayPhone'],
+                'SPOUSE_MOBILE': district_record['Parent2DayPhone'],
+                'STU_FNAME': district_record['Student First Name'],
+                'STU_LNAME': district_record['Student Last Name'],
+                'STU_NUMBER': district_record['SystemID'],
+                'SCHOOL': district_school_to_dp_school(district_record['School']),
+                'GRADE': district_record['Grade'],
+                'GUARDIAN': district_record['Guardian'],
+                'GUARD_EMAIL': district_record['GuardianEmail'],
+                'DONOR_TYPE': 'IN',
+                'FY_JOIN_BSD': SCHOOL_YEAR,
+                'RECEIPT_DELIVERY': 'E',
+                # Not needed: 'OTHER_ID': district_record[''],
+                'OTHER_DATE': datetime.date.today().strftime('%m/%d/%Y'),
+                }
+        dp_import_newdonorrecords.append(newdonorrecord)
+
+    #End if no donor ID records found
+#End loop over student IDs in district data
 
 # Clean up outputdata
 outputdata_fieldnames = list(DP_REPORT_221_HEADERS)
@@ -160,9 +245,38 @@ for studentrecord in dp_import_studentrecords:
     if len(studentrecord['OTHER_DATE']) == 0:
         studentrecord['OTHER_DATE'] = datetime.date.today().strftime('%m/%d/%Y')
 
-# Write outputdata
-with open(student_updates_filename, 'w') as outputfile:
-    writer = csv.DictWriter(outputfile, outputdata_fieldnames)
-    writer.writeheader()
-    for studentrecord in dp_import_studentrecords:
-        writer.writerow(studentrecord)
+save_as_csv_file(student_updates_filename, outputdata_fieldnames, dp_import_studentrecords)
+
+
+# Output new-donor upload file 
+newdonor_header = ['FIRST_NAME', 
+                'LAST_NAME', 
+                'SP_FNAME', 
+                'SP_LNAME',
+                'SALUTATION',
+                'INFORMAL_SAL',
+                'OPT_LINE',
+                'ADDRESS',
+                'CITY',
+                'STATE',
+                'ZIP',
+                'ADDRESS_TYPE',
+                'EMAIL',
+                'SPOUSE_EMAIL',
+                'HOME_PHONE',
+                'MOBILE_PHONE',
+                'SPOUSE_MOBILE',
+                'STU_FNAME',
+                'STU_LNAME',
+                'STU_NUMBER',
+                'SCHOOL',
+                'GRADE',
+                'GUARDIAN',
+                'GUARD_EMAIL',
+                'DONOR_TYPE',
+                'FY_JOIN_BSD',
+                'RECEIPT_DELIVERY',
+                'OTHER_DATE' ]
+
+save_as_csv_file(newdonor_filename, newdonor_header, dp_import_newdonorrecords)
+print("Number of new donor records for upload = %d" % len(dp_import_newdonorrecords))
