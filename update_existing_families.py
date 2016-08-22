@@ -8,10 +8,10 @@ def usage(error=None):
     if error:
         print("ERROR:", error)
     print('''
-Usage: python update_existing_families.py <dp-report-221.csv> <district-data.csv>
+Usage: python update_existing_families.py <dp-report-271.csv> <district-data.csv>
 
 Creates files to be imported into DP to update data for existing families.
-    <dp-report-221.csv> should be the csv output from DP: Reports -> Custom Report Writer -> 221 -> CSV.
+    <dp-report-271.csv> should be the csv output from DP: Reports -> Custom Report Writer -> 271 -> CSV.
     <district-data.csv> is the Excel spreadsheet received from the district, converted to csv.
 
 Outputs (to current working directory):
@@ -19,18 +19,19 @@ Outputs (to current working directory):
                  Utilities -> Import,
                  Select Type of Import = Insert New and / or Update Existing Records,
                  Select Type of Records = Names, Addresses, Other Info
-    02-donor-updates.csv: updates to existing donors. Import second:
-                 TBD
-    03-newdonor-updates.csv: creates records for new donors. 
+    02-newdonor-updates.csv: creates records for new donors. 
         Import process TBD
+    03-donor-updates.csv: updates to existing donors. Import last:
+                 TBD
     ''')
     sys.exit(1)
 
 # TODO: Write out family-level updates (address changes etc). These will go to 02-donor-updates.csv.
 
-DP_REPORT_221_HEADERS = ['DONOR_ID', 'STU_LNAME', 'STU_FNAME', 'STU_NUMBER', 'SCHOOL', 'GRADE',
-                         'FIRST_NAME', 'LAST_NAME', 'SP_FNAME', 'SP_LNAME',
-                         'ADDRESS', 'ADDRESS2', 'ADDRESS3', 'ADDRESS4', 'CITY', 'OTHER_ID', 'OTHER_DATE']
+DP_REPORT_271_HEADERS = ['DONOR_ID','FIRST_NAME','LAST_NAME','SP_FNAME','SP_LNAME',
+        'ADDRESS','CITY','STATE','ZIP','EMAIL','SPOUSE_EMAIL',
+        'HOME_PHONE','MOBILE_PHONE','SPOUSE_MOBILE',
+        'STU_NUMBER','STU_FNAME','STU_LNAME','GRADE','SCHOOL','OTHER_DATE']
 
 DISTRICT_DATA_HEADERS = ['School', 'SystemID', 'Student Last Name', 'Student First Name', 'street', 'city',
                          'state', 'zip', 'Mailing_Street', 'Mailing_City', 'Mailing_State', 'Mailing_Zip',
@@ -84,6 +85,7 @@ def load_csv_file(filename, expected_headers):
         validate_headers(filename, expected_headers, reader.fieldnames)
         for row in reader:
             res.append(row)
+    print("Number of input records read from %s = %d" % (filename, len(res)))
     return res
 
 def save_as_csv_file(filename, header_fields, data): 
@@ -96,14 +98,14 @@ def save_as_csv_file(filename, header_fields, data):
 if len(sys.argv) != 3:
     usage()
 
-dp_report_221_filename = sys.argv[1]
+dp_report_271_filename = sys.argv[1]
 district_data_filename = sys.argv[2]
 student_updates_filename = '01-student-updates.csv'
-newdonor_filename = '03-newdonor-updates.csv'
+newdonor_filename = '02-newdonor-updates.csv'
 
 # Load dp data keyed off student number
 dp_records_multidict = defaultdict(list)
-for row in load_csv_file(dp_report_221_filename, DP_REPORT_221_HEADERS):
+for row in load_csv_file(dp_report_271_filename, DP_REPORT_271_HEADERS):
     if len(row['STU_NUMBER']) > 0:
         dp_records_multidict[row['STU_NUMBER']].append(row)
 
@@ -159,11 +161,14 @@ for student_id in district_records_dict:
                         'SP_FNAME': siblingrecord['SP_FNAME'],
                         'SP_LNAME': siblingrecord['SP_LNAME'],
                         'ADDRESS': siblingrecord['ADDRESS'],
-                        'ADDRESS2': siblingrecord['ADDRESS2'],
-                        'ADDRESS3': siblingrecord['ADDRESS3'],
-                        'ADDRESS4': siblingrecord['ADDRESS4'],
                         'CITY': siblingrecord['CITY'],
-                        'OTHER_ID': '',
+                        'STATE': siblingrecord['STATE'],
+                        'ZIP': siblingrecord['ZIP'],
+                        'EMAIL': siblingrecord['EMAIL'],
+                        'SPOUSE_EMAIL': siblingrecord['SPOUSE_EMAIL'],
+                        'HOME_PHONE': siblingrecord['HOME_PHONE'],
+                        'MOBILE_PHONE': siblingrecord['MOBILE_PHONE'],
+                        'SPOUSE_MOBILE': siblingrecord['SPOUSE_MOBILE'],
                         'OTHER_DATE': ''
                     }
                     dp_import_studentrecords.append(studentrecord)
@@ -236,7 +241,6 @@ for student_id in district_records_dict:
                 'DONOR_TYPE': 'IN',
                 'FY_JOIN_BSD': SCHOOL_YEAR,
                 'RECEIPT_DELIVERY': 'E',
-                # Not needed: 'OTHER_ID': district_record[''],
                 'OTHER_DATE': datetime.date.today().strftime('%m/%d/%Y'),
                 }
         dp_import_newdonorrecords.append(newdonorrecord)
@@ -245,14 +249,13 @@ for student_id in district_records_dict:
 #End loop over student IDs in district data
 
 # Clean up outputdata
-outputdata_fieldnames = list(DP_REPORT_221_HEADERS)
-outputdata_fieldnames.remove('OTHER_ID')
+outputdata_fieldnames = list(DP_REPORT_271_HEADERS)
 for studentrecord in dp_import_studentrecords:
-    del studentrecord['OTHER_ID']
     if len(studentrecord['OTHER_DATE']) == 0:
         studentrecord['OTHER_DATE'] = datetime.date.today().strftime('%m/%d/%Y')
 
 save_as_csv_file(student_updates_filename, outputdata_fieldnames, dp_import_studentrecords)
+print("Number of student updated records for upload = %d" % len(dp_import_studentrecords))
 
 
 # Output new-donor upload file 
