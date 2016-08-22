@@ -67,6 +67,13 @@ DISTRICT_SCHOOL_MAPPING = {
 def district_school_to_dp_school(name):
     return DISTRICT_SCHOOL_MAPPING[name]
 
+def dp_grade_for_district_record(district_record):
+    # District data uses grade 0 for both TK and Kindergarten
+    if district_record['entrycode'] == 'TK':
+        return "-1"
+    else:
+        return district_record['Grade']
+
 def load_csv_file(filename, expected_headers):
     if not filename.endswith('.csv'):
         print("%s must be a csv file" % (filename))
@@ -112,7 +119,7 @@ for student_id in dp_records_multidict:
         studentrecord = dp_record.copy()
         if student_id in district_records_dict:
             # Returning student
-            studentrecord['GRADE'] = district_records_dict[student_id]['Grade']
+            studentrecord['GRADE'] = dp_grade_for_district_record(district_records_dict[student_id])
             studentrecord['SCHOOL'] = district_school_to_dp_school(district_records_dict[student_id]['School'])
         elif dp_record['GRADE'] == '8' and dp_record['SCHOOL'] == 'BIS':
             studentrecord['GRADE'] = '9'
@@ -146,7 +153,7 @@ for student_id in district_records_dict:
                         'STU_FNAME': district_record['Student First Name'],
                         'STU_NUMBER': student_id,
                         'SCHOOL': district_school_to_dp_school(district_record['School']),
-                        'GRADE': district_record['Grade'],
+                        'GRADE': dp_grade_for_district_record(district_record),
                         'FIRST_NAME': siblingrecord['FIRST_NAME'],
                         'LAST_NAME': siblingrecord['LAST_NAME'],
                         'SP_FNAME': siblingrecord['SP_FNAME'],
@@ -223,7 +230,7 @@ for student_id in district_records_dict:
                 'STU_LNAME': district_record['Student Last Name'],
                 'STU_NUMBER': district_record['SystemID'],
                 'SCHOOL': district_school_to_dp_school(district_record['School']),
-                'GRADE': district_record['Grade'],
+                'GRADE': dp_grade_for_district_record(district_record),
                 'GUARDIAN': district_record['Guardian'],
                 'GUARD_EMAIL': district_record['GuardianEmail'],
                 'DONOR_TYPE': 'IN',
