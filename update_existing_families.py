@@ -172,27 +172,27 @@ for student_id in district_records_dict:
         # At any rate, we have to prepare a new record for this donor, with several custom fields
         #print("Creating record for new donor w/ new student %s" % (student_id))
 
-        h_l_name = district_record['Parent1 Last Name']
-        if len(h_l_name) != 0: 
-            h_f_name = district_record['Parent 1 First Name']
-            w_f_name = district_record['Parent 2 First Name']
-            w_l_name = district_record['Parent 2 Last Name']
+        main_l_name = district_record['Parent1 Last Name']
+        if len(main_l_name) != 0: 
+            main_f_name = district_record['Parent 1 First Name']
+            spouse_f_name = district_record['Parent 2 First Name']
+            spouse_l_name = district_record['Parent 2 Last Name']
         else:
-            h_f_name = district_record['Parent 2 First Name']
-            h_l_name = district_record['Parent 2 Last Name']
-            w_f_name = ""
-            w_l_name = ""
+            main_f_name = district_record['Parent 2 First Name']
+            main_l_name = district_record['Parent 2 Last Name']
+            spouse_f_name = ""
+            spouse_l_name = ""
 
 
-        if len(w_l_name) != 0:
-            if w_l_name == h_l_name :
-                salutation = h_f_name + " and " + w_f_name + " " + w_l_name
+        if len(spouse_l_name) != 0:
+            if spouse_l_name == main_l_name :
+                salutation = main_f_name + " and " + spouse_f_name + " " + spouse_l_name
             else:
-                salutation = h_f_name + " " + h_l_name + " and " + w_f_name + " " + w_l_name
-            informal_sal = h_f_name + " and " + w_f_name
+                salutation = main_f_name + " " + main_l_name + " and " + spouse_f_name + " " + spouse_l_name
+            informal_sal = main_f_name + " and " + spouse_f_name
         else:
-            salutation = h_f_name + " " + h_l_name 
-            informal_sal = h_f_name 
+            salutation = main_f_name + " " + main_l_name 
+            informal_sal = main_f_name 
 
 
         if len(district_record['Parent1Email']) == 0:
@@ -202,13 +202,13 @@ for student_id in district_records_dict:
             
             
         newdonorrecord = {
-                'FIRST_NAME': h_f_name,
-                'LAST_NAME': h_l_name,
-                'SP_FNAME': w_f_name,
-                'SP_LNAME': w_l_name,
+                'FIRST_NAME': main_f_name,
+                'LAST_NAME': main_l_name,
+                'SP_FNAME': spouse_f_name,
+                'SP_LNAME': spouse_l_name,
                 'SALUTATION': salutation,
                 'INFORMAL_SAL': informal_sal,
-                'OPT_LINE': w_f_name + " " + w_l_name,
+                'OPT_LINE': spouse_f_name + " " + spouse_l_name,
                 'ADDRESS': district_record['street'],
                 'CITY': district_record['city'],
                 'STATE': district_record['state'],
