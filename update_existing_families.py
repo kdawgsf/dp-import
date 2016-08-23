@@ -147,11 +147,14 @@ district_records_dict = {}
 for row in load_csv_file(filename_district_data, DISTRICT_DATA_HEADERS):
     district_records_dict[row['SystemID']] = row
 
+STUDENT_UPDATES_HEADERS = ['DONOR_ID', 'STU_NUMBER', 'STU_FNAME', 'STU_LNAME', 'SCHOOL', 'GRADE', 'OTHER_DATE']
+
 # Make updates for existing students
 dp_import_existingstudentrecords = []
 for student_id in dp_records_multidict:
     for dp_record in dp_records_multidict[student_id]:
-        studentrecord = dp_record.copy()
+        dp_record_minimal = { field: dp_record[field] for field in STUDENT_UPDATES_HEADERS }
+        studentrecord = dp_record_minimal.copy()
         if student_id in district_records_dict:
             # Returning student
             studentrecord['GRADE'] = dp_grade_for_district_record(district_records_dict[student_id])
@@ -161,7 +164,7 @@ for student_id in dp_records_multidict:
             studentrecord['SCHOOL'] = 'ALUM'
         elif dp_record['SCHOOL'] != 'ALUM':
             studentrecord['SCHOOL'] = 'NOBSD'
-        if dp_record != studentrecord:
+        if dp_record_minimal != studentrecord:
             if studentrecord['OTHER_DATE'] == '':
                 studentrecord['OTHER_DATE'] = TODAY_STR
             dp_import_existingstudentrecords.append(studentrecord)
@@ -327,7 +330,7 @@ for student_id in district_records_dict:
 
 print()
 print("Output files:")
-save_as_csv_file(FILENAME_STUDENT_UPDATES, DP_REPORT_271_HEADERS, dp_import_existingstudentrecords)
+save_as_csv_file(FILENAME_STUDENT_UPDATES, STUDENT_UPDATES_HEADERS, dp_import_existingstudentrecords)
 
 save_as_csv_file(FILENAME_NEWSTUDENT, DP_REPORT_271_HEADERS, dp_import_newstudentrecords)
 
