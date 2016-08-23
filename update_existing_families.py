@@ -19,14 +19,15 @@ Outputs (to current working directory):
                  Utilities -> Import,
                  Select Type of Import = Insert New and / or Update Existing Records,
                  Select Type of Records = Names, Addresses, Other Info
-    02-newdonor-updates.csv: creates records for new donors. 
-        Import process TBD
+    02-newdonor-updates.csv: creates records for new donors (and potentially updates some existing ones). Import second:
+                 Utilities -> Import,
+                 Select Type of Import = Insert New and / or Update Existing Records,
+                 Select Type of Records = Names, Addresses, Other Info
     03-donor-updates.csv: updates to existing donors. Import last:
                  TBD
     ''')
     sys.exit(1)
 
-# TODO: Write out family-level updates (address changes etc). These will go to 02-donor-updates.csv.
 
 DP_REPORT_271_HEADERS = ['DONOR_ID','FIRST_NAME','LAST_NAME','SP_FNAME','SP_LNAME',
         'ADDRESS','CITY','STATE','ZIP','EMAIL','SPOUSE_EMAIL',
@@ -102,6 +103,7 @@ dp_report_271_filename = sys.argv[1]
 district_data_filename = sys.argv[2]
 student_updates_filename = '01-student-updates.csv'
 newdonor_filename = '02-newdonor-updates.csv'
+donor_updates_filename = '03-donor-updates.csv'
 
 # Load dp data keyed off student number
 dp_records_multidict = defaultdict(list)
