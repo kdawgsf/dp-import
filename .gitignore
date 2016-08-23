@@ -88,10 +88,11 @@ ENV/
 # Rope project settings
 .ropeproject
 
-# Data files
+# Confidential data files
 *.csv
 *.xls
 *.xlsx
+*.txt
 
 # PyCharm
 .idea
