@@ -164,6 +164,10 @@ for student_id in dp_records_multidict:
             studentrecord['SCHOOL'] = 'ALUM'
         elif dp_record['SCHOOL'] != 'ALUM':
             studentrecord['SCHOOL'] = 'NOBSD'
+        # The two records will be the same if:
+        # (a) we run this mid-year, OR
+        # (b) a student is already NOBSD
+        # The same process works whether we're running a summer update or a mid-year update.
         if dp_record_minimal != studentrecord:
             if studentrecord['OTHER_DATE'] == '':
                 studentrecord['OTHER_DATE'] = TODAY_STR
