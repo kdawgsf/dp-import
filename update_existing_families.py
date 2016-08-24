@@ -20,7 +20,8 @@ Outputs (to current working directory):
     01-student-updates.csv: updates to existing students. Import first:
                  Utilities -> Import,
                  Select Type of Import = Update Existing Records,
-                 Select Type of Records = Other Info
+                 Select Type of Records = Other Info,
+                 Ignore DONOR_ID
     02-new-students.csv: creates new students for existing families. Import second:
                  Utilities -> Import,
                  Select Type of Import = Insert New and / or Update Existing Records,
@@ -160,6 +161,9 @@ for student_id in dp_records_multidict:
             # Returning student
             studentrecord['GRADE'] = dp_grade_for_district_record(district_records_dict[student_id])
             studentrecord['SCHOOL'] = district_school_to_dp_school(district_records_dict[student_id]['School'])
+            # District data has 6th graders at the elementary schools, so manually update these
+            if studentrecord['GRADE'] == '6':
+                studentrecord['SCHOOL'] = 'BIS'
         elif dp_record['GRADE'] == '8' and dp_record['SCHOOL'] == 'BIS':
             studentrecord['GRADE'] = '9'
             studentrecord['SCHOOL'] = 'ALUM'
