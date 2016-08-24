@@ -192,15 +192,15 @@ for student_id in district_records_dict:
             for siblingrecord in dp_records_multidict[sibling_id]:
                 if siblingrecord['DONOR_ID'] not in donor_ids_encountered:
                     donor_ids_encountered.add(siblingrecord['DONOR_ID'])
-                    studentrecord = siblingrecord.copy()
-                    studentrecord.update({
+                    studentrecord = {
+                        'DONOR_ID': siblingrecord['DONOR_ID'],
                         'STU_LNAME': district_record['Student Last Name'],
                         'STU_FNAME': district_record['Student First Name'],
                         'STU_NUMBER': student_id,
                         'SCHOOL': district_school_to_dp_school(district_record['School']),
                         'GRADE': dp_grade_for_district_record(district_record),
                         'OTHER_DATE': TODAY_STR
-                    })
+                    }
                     dp_import_newstudentrecords.append(studentrecord)
 
     if len(donor_ids_encountered) == 0:
@@ -336,7 +336,7 @@ print()
 print("Output files:")
 save_as_csv_file(FILENAME_STUDENT_UPDATES, STUDENT_UPDATES_HEADERS, dp_import_existingstudentrecords)
 
-save_as_csv_file(FILENAME_NEWSTUDENT, DP_REPORT_271_HEADERS, dp_import_newstudentrecords)
+save_as_csv_file(FILENAME_NEWSTUDENT, STUDENT_UPDATES_HEADERS, dp_import_newstudentrecords)
 
 # Output new-donor upload file
 newdonor_header = ['STU_NUMBER',
