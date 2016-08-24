@@ -54,6 +54,7 @@ DISTRICT_DATA_HEADERS = ['School', 'SystemID', 'Student Last Name', 'Student Fir
 
 SCHOOL_YEAR = 'SY2016-17'
 TODAY_STR = datetime.date.today().strftime('%m/%d/%Y')
+SHOULD_UPDATE_EMAIL = False
 
 FILENAME_STUDENT_UPDATES = '01-student-updates.csv'
 FILENAME_NEWSTUDENT = '02-new-students.csv'
@@ -192,15 +193,15 @@ for student_id in district_records_dict:
             for siblingrecord in dp_records_multidict[sibling_id]:
                 if siblingrecord['DONOR_ID'] not in donor_ids_encountered:
                     donor_ids_encountered.add(siblingrecord['DONOR_ID'])
-                    studentrecord = siblingrecord.copy()
-                    studentrecord.update({
+                    studentrecord = {
+                        'DONOR_ID': siblingrecord['DONOR_ID'],
                         'STU_LNAME': district_record['Student Last Name'],
                         'STU_FNAME': district_record['Student First Name'],
                         'STU_NUMBER': student_id,
                         'SCHOOL': district_school_to_dp_school(district_record['School']),
                         'GRADE': dp_grade_for_district_record(district_record),
                         'OTHER_DATE': TODAY_STR
-                    })
+                    }
                     dp_import_newstudentrecords.append(studentrecord)
 
     if len(donor_ids_encountered) == 0:
@@ -302,7 +303,7 @@ for student_id in district_records_dict:
         continue
 
     donor_ids_processed.update(donor_ids_for_student)
-    if (district_address not in dp_addresses) or (not dp_emails.issuperset(district_emails)):
+    if (district_address not in dp_addresses) or (SHOULD_UPDATE_EMAIL and not dp_emails.issuperset(district_emails)):
         if len(donor_ids_for_student) == 1:
             # We will make the update
             dp_record = dp_records_multidict[student_id][0]
@@ -311,12 +312,15 @@ for student_id in district_records_dict:
                 'ADDRESS': district_record['street'],
                 'CITY': district_record['city'],
                 'STATE': district_record['state'],
-                'ZIP': district_record['zip'],
-                'EMAIL': district_record['Parent1Email'],
-                'SPOUSE_EMAIL': district_record['Parent2Email']
+                'ZIP': district_record['zip']
             }
-            if existingdonorrecord['EMAIL'] == '':
-                existingdonorrecord['EMAIL'] = existingdonorrecord['SPOUSE_EMAIL']
+            if SHOULD_UPDATE_EMAIL:
+                existingdonorrecord.update({
+                    'EMAIL': district_record['Parent1Email'],
+                    'SPOUSE_EMAIL': district_record['Parent2Email']
+                })
+                if existingdonorrecord['EMAIL'] == '':
+                    existingdonorrecord['EMAIL'] = existingdonorrecord['SPOUSE_EMAIL']
             dp_import_existingdonorrecords.append(existingdonorrecord)
         else:
             # Don't want to update the wrong donor, so just note the difference
@@ -326,7 +330,7 @@ for student_id in district_records_dict:
             if district_address not in dp_addresses:
                 str_list.append("  DP addresses: " + ', '.join(dp_addresses))
                 str_list.append("  District address: " + district_address)
-            if not dp_emails.issuperset(district_emails):
+            if SHOULD_UPDATE_EMAIL and not dp_emails.issuperset(district_emails):
                 str_list.append("  DP emails: " + ', '.join(dp_emails))
                 str_list.append("  District Parent1Email: " + district_record['Parent1Email'])
                 str_list.append("  District Parent2Email: " + district_record['Parent2Email'])
@@ -336,7 +340,7 @@ print()
 print("Output files:")
 save_as_csv_file(FILENAME_STUDENT_UPDATES, STUDENT_UPDATES_HEADERS, dp_import_existingstudentrecords)
 
-save_as_csv_file(FILENAME_NEWSTUDENT, DP_REPORT_271_HEADERS, dp_import_newstudentrecords)
+save_as_csv_file(FILENAME_NEWSTUDENT, STUDENT_UPDATES_HEADERS, dp_import_newstudentrecords)
 
 # Output new-donor upload file
 newdonor_header = ['STU_NUMBER',
@@ -371,6 +375,8 @@ newdonor_header = ['STU_NUMBER',
 save_as_csv_file(FILENAME_NEWDONOR, newdonor_header, dp_import_newdonorrecords)
 
 # Output donor-updates upload file
-existingdonor_header = ['DONOR_ID', 'ADDRESS', 'CITY', 'STATE', 'ZIP', 'EMAIL', 'SPOUSE_EMAIL']
+existingdonor_header = ['DONOR_ID', 'ADDRESS', 'CITY', 'STATE', 'ZIP']
+if SHOULD_UPDATE_EMAIL:
+    existingdonor_header += ['EMAIL', 'SPOUSE_EMAIL']
 save_as_csv_file(FILENAME_DONOR_UPDATES, existingdonor_header, dp_import_existingdonorrecords)
 save_as_text_file(FILENAME_DONOR_UPDATE_MESSAGES, dp_messages_existingdonorrecords)
