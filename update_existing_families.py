@@ -19,8 +19,8 @@ Creates files to be imported into DP to update data for existing families.
 Outputs (to current working directory):
     01-student-updates.csv: updates to existing students. Import first:
                  Utilities -> Import,
-                 Select Type of Import = Insert New and / or Update Existing Records,
-                 Select Type of Records = Names, Addresses, Other Info
+                 Select Type of Import = Update Existing Records,
+                 Select Type of Records = Other Info
     02-new-students.csv: creates new students for existing families. Import second:
                  Utilities -> Import,
                  Select Type of Import = Insert New and / or Update Existing Records,
@@ -42,7 +42,7 @@ Outputs (to current working directory):
 DP_REPORT_271_HEADERS = ['DONOR_ID','FIRST_NAME','LAST_NAME','SP_FNAME','SP_LNAME',
                          'ADDRESS','CITY','STATE','ZIP','EMAIL','SPOUSE_EMAIL',
                          'HOME_PHONE','MOBILE_PHONE','SPOUSE_MOBILE',
-                         'STU_NUMBER','STU_FNAME','STU_LNAME','GRADE','SCHOOL','OTHER_DATE']
+                         'STU_NUMBER','STU_FNAME','STU_LNAME','GRADE','SCHOOL','OTHER_ID','OTHER_DATE']
 
 DISTRICT_DATA_HEADERS = ['School', 'SystemID', 'Student Last Name', 'Student First Name', 'street', 'city',
                          'state', 'zip', 'Mailing_Street', 'Mailing_City', 'Mailing_State', 'Mailing_Zip',
@@ -148,7 +148,7 @@ district_records_dict = {}
 for row in load_csv_file(filename_district_data, DISTRICT_DATA_HEADERS):
     district_records_dict[row['SystemID']] = row
 
-STUDENT_UPDATES_HEADERS = ['DONOR_ID', 'STU_NUMBER', 'STU_FNAME', 'STU_LNAME', 'SCHOOL', 'GRADE', 'OTHER_DATE']
+STUDENT_UPDATES_HEADERS = ['DONOR_ID', 'STU_NUMBER', 'STU_FNAME', 'STU_LNAME', 'SCHOOL', 'GRADE', 'OTHER_ID', 'OTHER_DATE']
 
 # Make updates for existing students
 dp_import_existingstudentrecords = []
@@ -200,6 +200,7 @@ for student_id in district_records_dict:
                         'STU_NUMBER': student_id,
                         'SCHOOL': district_school_to_dp_school(district_record['School']),
                         'GRADE': dp_grade_for_district_record(district_record),
+                        'OTHER_ID': '',
                         'OTHER_DATE': TODAY_STR
                     }
                     dp_import_newstudentrecords.append(studentrecord)
