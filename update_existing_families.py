@@ -160,8 +160,8 @@ STUDENT_UPDATES_HEADERS = ['DONOR_ID', 'STU_NUMBER', 'STU_FNAME', 'STU_LNAME', '
 
 # Make updates for existing students
 dp_import_existingstudentrecords = []
-for student_id in dp_records_multidict:
-    for dp_record in dp_records_multidict[student_id]:
+for student_id, dp_records in dp_records_multidict.iteritems():
+    for dp_record in dp_records:
         dp_record_minimal = { field: dp_record[field] for field in STUDENT_UPDATES_HEADERS }
         studentrecord = dp_record_minimal.copy()
         if student_id in district_records_dict:
@@ -194,8 +194,7 @@ for student_id in district_records_dict:
 # Add new students, either to existing or new families
 dp_import_newdonorrecords = []
 dp_import_newstudentrecords = []
-for student_id in district_records_dict:
-    district_record = district_records_dict[student_id]
+for student_id, district_record in district_records_dict.iteritems():
     if student_id in dp_records_multidict:
         continue
     donor_ids_encountered = set()
@@ -295,18 +294,17 @@ for student_id in district_records_dict:
 dp_import_existingdonorrecords = []
 dp_messages_existingdonorrecords = []
 donor_ids_processed = set()
-for student_id in district_records_dict:
-    district_record = district_records_dict[student_id]
+for student_id, district_record in district_records_dict.iteritems():
     district_address = '%s %s %s %s' % (district_record['street'], district_record['city'], district_record['state'], district_record['zip'])
     district_emails = set([district_record['Parent1Email'].lower(), district_record['Parent2Email'].lower()])
     district_emails.discard('')
 
-    dp_addresses = set()
+    dp_addresses_by_donor_id = {}
     dp_emails = set()
     donor_ids_for_student = set()
     for dp_record in dp_records_multidict[student_id]:
         donor_ids_for_student.add(dp_record['DONOR_ID'])
-        dp_addresses.add('%s %s %s %s' % (dp_record['ADDRESS'], dp_record['CITY'], dp_record['STATE'], dp_record['ZIP']))
+        dp_addresses_by_donor_id[dp_record['DONOR_ID']] = '%s %s %s %s' % (dp_record['ADDRESS'], dp_record['CITY'], dp_record['STATE'], dp_record['ZIP'])
         dp_emails.add(dp_record['EMAIL'].lower())
         dp_emails.add(dp_record['SPOUSE_EMAIL'].lower())
     dp_emails.discard('')
@@ -315,7 +313,7 @@ for student_id in district_records_dict:
         continue
 
     donor_ids_processed.update(donor_ids_for_student)
-    if (district_address not in dp_addresses) or (SHOULD_UPDATE_EMAIL and not dp_emails.issuperset(district_emails)):
+    if (district_address not in dp_addresses_by_donor_id.values()) or (SHOULD_UPDATE_EMAIL and not dp_emails.issuperset(district_emails)):
         if len(donor_ids_for_student) == 1:
             # We will make the update
             dp_record = dp_records_multidict[student_id][0]
@@ -339,9 +337,10 @@ for student_id in district_records_dict:
             str_list = []
             str_list.append("Found MANUAL ADDRESS UPDATE for student %s %s (%s) with %d donor records:"
                             % (dp_record['STU_FNAME'], dp_record['STU_LNAME'], student_id, len(donor_ids_for_student)))
-            if district_address not in dp_addresses:
-                str_list.append("  DP addresses: " + ', '.join(dp_addresses))
-                str_list.append("  District address: " + district_address)
+            if district_address not in dp_addresses_by_donor_id.values():
+                for donor_id, dp_address in dp_addresses_by_donor_id.iteritems():
+                    str_list.append("  Donor %s address: %s" % (donor_id, dp_address))
+                str_list.append("  District address: %s" % district_address)
             if SHOULD_UPDATE_EMAIL and not dp_emails.issuperset(district_emails):
                 str_list.append("  DP emails: " + ', '.join(dp_emails))
                 str_list.append("  District Parent1Email: " + district_record['Parent1Email'])
