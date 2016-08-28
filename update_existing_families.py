@@ -13,7 +13,7 @@ def usage(error=None):
 Usage: python update_existing_families.py <dp-report-271.csv> <district-data.csv>
 
 Creates files to be imported into DP to update data for existing families.
-    <dp-report-271.csv> should be the csv output from DP: Reports -> Custom Report Writer -> 271 -> CSV.
+    <dp-report-271.csv> should be the csv output from DP: Reports -> Custom Report Writer -> Include "NO MAIL" Names -> 271 -> CSV.
     <district-data.csv> is the Excel spreadsheet received from the district, converted to csv.
 
 Outputs (to current working directory):
@@ -43,7 +43,8 @@ Outputs (to current working directory):
 DP_REPORT_271_HEADERS = ['DONOR_ID','FIRST_NAME','LAST_NAME','SP_FNAME','SP_LNAME',
                          'ADDRESS','CITY','STATE','ZIP','EMAIL','SPOUSE_EMAIL',
                          'HOME_PHONE','MOBILE_PHONE','SPOUSE_MOBILE',
-                         'STU_NUMBER','STU_FNAME','STU_LNAME','GRADE','SCHOOL','OTHER_ID','OTHER_DATE']
+                         'STU_NUMBER','STU_FNAME','STU_LNAME','GRADE','SCHOOL','OTHER_ID','OTHER_DATE',
+                         'DONOR_TYPE','NOMAIL','NOMAIL_REASON']
 
 DISTRICT_DATA_HEADERS = ['School', 'SystemID', 'Student Last Name', 'Student First Name', 'street', 'city',
                          'state', 'zip', 'Mailing_Street', 'Mailing_City', 'Mailing_State', 'Mailing_Zip',
@@ -140,9 +141,15 @@ print("Input files:")
 
 # Load dp data keyed off student number
 dp_records_multidict = defaultdict(list)
+includes_nomail = False
 for row in load_csv_file(filename_dp_report_271, DP_REPORT_271_HEADERS):
+    if row['NOMAIL'] == 'Y':
+        includes_nomail = True
     if len(row['STU_NUMBER']) > 0:
         dp_records_multidict[row['STU_NUMBER']].append(row)
+if not includes_nomail:
+    print("%s must include \"NO MAIL\" donors. Please select 'Include \"NO MAIL\" Names' and regenerate the report." % filename_dp_report_271)
+    sys.exit(1)
 
 # Load district data keyed off student number ("system id" there)
 district_records_dict = {}
