@@ -397,19 +397,38 @@ for stu_number, district_record in district_records.iteritems():
             dp_messages_existingdonorrecords.append(convert_str_list_to_message(str_list))
 
 
-# Data cleansing
+# Fix up NOMAIL stuff
 for donor_id, dp_donorrecord in dp_donorrecords.iteritems():
-    # TODO Enable NOMAIL for donors with all NOBSD students
-    # TODO Disable NOMAIL for donors with non-NOBSD students and reason NO
-    # Empty out NOMAIL_REASON if NOMAIL not set
-    if dp_donorrecord['NOMAIL'] == 'N' and dp_donorrecord['NOMAIL_REASON']:
+    other_ids = dp_donor_id_to_other_ids[donor_id]
+    other_count = len(other_ids)
+    nobsd_count = 0
+    for other_id in other_ids:
+        if dp_studentrecords[other_id]['SCHOOL'] == 'NOBSD':
+            nobsd_count += 1
+
+    if dp_donorrecord['NOMAIL'] == 'N' and nobsd_count > 0 and nobsd_count == other_count:
+        # Set NOMAIL for donors with all-NOBSD students
+        dp_donorrecord['NOMAIL'] = 'Y'
+        dp_donorrecord['NOMAIL_REASON'] = 'NO'
+        dp_donorrecord['DONOR_TYPE'] = 'NO'
+    elif dp_donorrecord['NOMAIL'] == 'Y' and dp_donorrecord['NOMAIL_REASON'] == 'NO' and nobsd_count < other_count:
+        # Unset NOMAIL for donors with non-NOBSD students and reason NO
+        dp_donorrecord['NOMAIL'] = 'N'
         dp_donorrecord['NOMAIL_REASON'] = ''
+        dp_donorrecord['DONOR_TYPE'] = 'IN'
+
+    # Legacy data cleanup
+    if dp_donorrecord['NOMAIL'] == 'N' and dp_donorrecord['NOMAIL_REASON']:
+        # Empty out NOMAIL_REASON if NOMAIL not set
+        dp_donorrecord['NOMAIL_REASON'] = ''
+
 
 def list_with_mods(l, add=[], remove=[]):
     res = l + add
     for v in remove:
         res.remove(v)
     return res
+
 
 def dict_filtered_copy(dict_to_copy, keys_to_copy):
     res = {}
