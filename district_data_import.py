@@ -1,8 +1,9 @@
 from __future__ import print_function
 from collections import defaultdict
-import csv
 import datetime
 import sys
+
+import utils
 
 # TODO: Make the year code a command-line argument
 
@@ -10,7 +11,7 @@ def usage(error=None):
     if error:
         print("ERROR:", error)
     print('''
-Usage: python update_existing_families.py <dp-report-271.csv> <district-data.csv>
+Usage: python district_data_import.py <dp-report-271.csv> <district-data.csv>
 
 Creates files to be imported into DP to update data for existing families.
     <dp-report-271.csv> should be the csv output from DP: Reports -> Custom Report Writer -> Include "NO MAIL" Names -> 271 -> CSV.
@@ -47,73 +48,6 @@ FILENAME_NEWDONOR = '03-new-donors.csv'
 FILENAME_DONOR_UPDATES = '04-donor-updates.csv'
 FILENAME_DONOR_UPDATE_MESSAGES = '05-donor-manual-updates.txt'
 
-def validate_headers(filename, expected, actual):
-    expected_set = set(expected)
-    actual_set = set(actual)
-    missing_list = list(expected_set.difference(actual_set))
-    if len(missing_list) > 0:
-        print("Missing expected header(s) in %s: %s" % (filename, missing_list))
-        sys.exit(1)
-    extra_list = list(actual_set.difference(expected_set))
-    if len(extra_list) > 0:
-        print("Found unexpected header(s) in %s: %s" % (filename, extra_list))
-        sys.exit(1)
-
-# Mapping of district school name to dp school code
-DISTRICT_SCHOOL_MAPPING = {
-    'Burlingame Intermediate School': 'BIS',
-    'Franklin Elementary School': 'FRANKLIN',
-    'Hoover Elementary School': 'HOOVER',
-    'Lincoln Elementary School': 'LINCOLN',
-    'McKinley Elementary School': 'MCKINLEY',
-    'Roosevelt Elementary School': 'ROOSEVELT',
-    'Washington Elementary School': 'WASHINGTON',
-}
-
-def district_school_to_dp_school(name):
-    return DISTRICT_SCHOOL_MAPPING[name]
-
-def dp_grade_for_district_record(district_record):
-    # District data uses grade 0 for both TK and Kindergarten
-    if district_record['entrycode'] == 'TK':
-        return "-1"
-    else:
-        return district_record['Grade']
-
-def load_csv_file(filename, expected_headers):
-    if not filename.endswith('.csv'):
-        print("%s must be a csv file" % (filename))
-        sys.exit(1)
-    res = []
-    with open(filename, 'rb') as csvfile:
-        reader = csv.DictReader(csvfile)
-        validate_headers(filename, expected_headers, reader.fieldnames)
-        for row in reader:
-            res.append(row)
-    print("    %s: Number of input records read = %d" % (filename, len(res)))
-    return res
-
-def save_as_csv_file(filename, header_fields, data): 
-    with open(filename, 'w') as outputfile:
-        writer = csv.DictWriter(outputfile, header_fields)
-        writer.writeheader()
-        for record in data:
-            writer.writerow(record)
-    print("    %s: Number of output records for upload = %d" % (filename, len(data)))
-
-def save_as_text_file(filename, messages):
-    with open(filename, 'w') as outputfile:
-        for message in messages:
-            outputfile.write(message)
-    print("    %s: Number of output messages = %d" % (filename, len(messages)))
-
-def convert_str_list_to_message(str_list):
-    res = ''
-    for str in str_list:
-        res += str + '\n'
-    res += '\n'
-    return res
-
 last_seq_values = {}
 def gen_next_value(seq):
     next = last_seq_values.get(seq, 0) + 1
@@ -125,22 +59,6 @@ def gen_donor_id():
 
 def gen_other_id():
     return -1 * gen_next_value('OTHER_ID')
-
-def modified_fields(old_dict, new_dict):
-    fields = []
-
-    removed_keys = set(old_dict.keys()).difference(new_dict.keys())
-    if len(removed_keys) > 0:
-        raise ValueError('Keys in old dict but not new dict: %s' % str(removed_keys))
-
-    added_keys = set(new_dict.keys()).difference(old_dict.keys())
-    if len(added_keys) > 0:
-        raise ValueError('Keys in new dict but not old dict: %s' % str(added_keys))
-
-    for key in old_dict.keys():
-        if old_dict[key] != new_dict[key]:
-            fields.append(key)
-    return fields
 
 if len(sys.argv) != 3:
     usage()
@@ -164,7 +82,7 @@ dp_stu_number_to_other_ids = defaultdict(list)
 
 # Load DP data
 includes_nomail = False
-for row in load_csv_file(filename_dp_report_271, DP_REPORT_271_HEADERS):
+for row in utils.load_csv_file(filename_dp_report_271, DP_REPORT_271_HEADERS):
     # Process donor-level info
     donor_id = row['DONOR_ID']
     dp_donorrecord = dict((header, row[header]) for header in DP_REPORT_271_DONOR_HEADERS)
@@ -198,7 +116,7 @@ if not includes_nomail:
 
 # Load district data keyed off student number ("system id" there)
 district_records = {}
-for row in load_csv_file(filename_district_data, DISTRICT_DATA_HEADERS):
+for row in utils.load_csv_file(filename_district_data, DISTRICT_DATA_HEADERS):
     district_records[row['SystemID']] = row
 
 # Make updates for existing students
@@ -206,8 +124,8 @@ for (other_id, dp_studentrecord) in dp_studentrecords.iteritems():
     stu_number = dp_studentrecord['STU_NUMBER']
     if stu_number in district_records:
         # Returning student
-        dp_studentrecord['GRADE'] = dp_grade_for_district_record(district_records[stu_number])
-        dp_studentrecord['SCHOOL'] = district_school_to_dp_school(district_records[stu_number]['School'])
+        dp_studentrecord['GRADE'] = utils.dp_grade_for_district_record(district_records[stu_number])
+        dp_studentrecord['SCHOOL'] = utils.district_school_to_dp_school(district_records[stu_number]['School'])
         # District data has 6th graders at the elementary schools, so manually update these
         if dp_studentrecord['GRADE'] == '6':
             dp_studentrecord['SCHOOL'] = 'BIS'
@@ -241,8 +159,8 @@ for stu_number, district_record in district_records.iteritems():
                         'STU_LNAME': district_record['Student Last Name'],
                         'STU_FNAME': district_record['Student First Name'],
                         'STU_NUMBER': stu_number,
-                        'SCHOOL': district_school_to_dp_school(district_record['School']),
-                        'GRADE': dp_grade_for_district_record(district_record),
+                        'SCHOOL': utils.district_school_to_dp_school(district_record['School']),
+                        'GRADE': utils.dp_grade_for_district_record(district_record),
                         'OTHER_ID': other_id,
                         'OTHER_DATE': TODAY_STR
                     }
@@ -322,8 +240,8 @@ for stu_number, district_record in district_records.iteritems():
             'STU_FNAME': district_record['Student First Name'],
             'STU_LNAME': district_record['Student Last Name'],
             'STU_NUMBER': district_record['SystemID'],
-            'SCHOOL': district_school_to_dp_school(district_record['School']),
-            'GRADE': dp_grade_for_district_record(district_record),
+            'SCHOOL': utils.district_school_to_dp_school(district_record['School']),
+            'GRADE': utils.dp_grade_for_district_record(district_record),
             'OTHER_DATE': TODAY_STR
         }
         dp_donor_id_to_other_ids[donor_id].append(other_id)
@@ -394,7 +312,7 @@ for stu_number, district_record in district_records.iteritems():
                 str_list.append("  DP emails: " + ', '.join(dp_emails))
                 str_list.append("  District Parent1Email: " + district_record['Parent1Email'])
                 str_list.append("  District Parent2Email: " + district_record['Parent2Email'])
-            dp_messages_existingdonorrecords.append(convert_str_list_to_message(str_list))
+            dp_messages_existingdonorrecords.append('\n'.join(str_list) + '\n\n')
 
 
 # Fix up NOMAIL stuff
@@ -423,68 +341,54 @@ for donor_id, dp_donorrecord in dp_donorrecords.iteritems():
         dp_donorrecord['NOMAIL_REASON'] = ''
 
 
-def list_with_mods(l, add=[], remove=[]):
-    res = l + add
-    for v in remove:
-        res.remove(v)
-    return res
-
-
-def dict_filtered_copy(dict_to_copy, keys_to_copy):
-    res = {}
-    for key in keys_to_copy:
-        if key in dict_to_copy:
-            res[key] = dict_to_copy[key]
-    return res
-
 print()
 print("Output files:")
 
 # Write student updates file
 data = []
-headers = list_with_mods(DP_REPORT_271_STUDENT_HEADERS, add=['_MODIFIED_FIELDS'])
+headers = utils.list_with_mods(DP_REPORT_271_STUDENT_HEADERS, add=['_MODIFIED_FIELDS'])
 for other_id, dp_studentrecord in dp_studentrecords.iteritems():
     if other_id in dp_unmodified_studentrecords and dp_studentrecord != dp_unmodified_studentrecords[other_id]:
-        row = dict_filtered_copy(dp_studentrecord, headers)
-        row['_MODIFIED_FIELDS'] = '|'.join(modified_fields(dp_unmodified_studentrecords[other_id], dp_studentrecord))
+        row = utils.dict_filtered_copy(dp_studentrecord, headers)
+        row['_MODIFIED_FIELDS'] = '|'.join(utils.modified_fields(dp_unmodified_studentrecords[other_id], dp_studentrecord))
         # Add OTHER_DATE if missing as the import doesn't seem to like having an empty one
         if not row['OTHER_DATE']:
             row['OTHER_DATE'] = TODAY_STR
         data.append(row)
-save_as_csv_file(FILENAME_STUDENT_UPDATES, headers, data)
+utils.save_as_csv_file(FILENAME_STUDENT_UPDATES, headers, data)
 
 # Write new students (existing donors) file
 data = []
-headers = list_with_mods(DP_REPORT_271_STUDENT_HEADERS, remove=['OTHER_ID'])
+headers = utils.list_with_mods(DP_REPORT_271_STUDENT_HEADERS, remove=['OTHER_ID'])
 for other_id, dp_studentrecord in dp_studentrecords.iteritems():
     if other_id not in dp_unmodified_studentrecords and dp_studentrecord['DONOR_ID'] in dp_unmodified_donorrecords:
-        row = dict_filtered_copy(dp_studentrecord, headers)
+        row = utils.dict_filtered_copy(dp_studentrecord, headers)
         data.append(row)
-save_as_csv_file(FILENAME_NEWSTUDENT, headers, data)
+utils.save_as_csv_file(FILENAME_NEWSTUDENT, headers, data)
 
 # Write new donors (new students) file
 data = []
-headers = list_with_mods(DP_REPORT_271_HEADERS, remove=['DONOR_ID','OTHER_ID'])
+headers = utils.list_with_mods(DP_REPORT_271_HEADERS, remove=['DONOR_ID','OTHER_ID'])
 for other_id, dp_studentrecord in dp_studentrecords.iteritems():
     if other_id not in dp_unmodified_studentrecords and dp_studentrecord['DONOR_ID'] not in dp_unmodified_donorrecords:
         # Combine donor and student fields into a single row
-        row = dict_filtered_copy(dp_studentrecord, headers)
-        row.update(dict_filtered_copy(dp_donorrecords[dp_studentrecord['DONOR_ID']], headers))
+        row = utils.dict_filtered_copy(dp_studentrecord, headers)
+        row.update(utils.dict_filtered_copy(dp_donorrecords[dp_studentrecord['DONOR_ID']], headers))
         data.append(row)
-save_as_csv_file(FILENAME_NEWDONOR, headers, data)
+utils.save_as_csv_file(FILENAME_NEWDONOR, headers, data)
 
 # Write donor updates file
 data = []
-headers = list_with_mods(DP_REPORT_271_DONOR_HEADERS, add=['_MODIFIED_FIELDS'])
+headers = utils.list_with_mods(DP_REPORT_271_DONOR_HEADERS, add=['_MODIFIED_FIELDS'])
 for donor_id, dp_donorrecord in dp_donorrecords.iteritems():
     if donor_id in dp_unmodified_donorrecords and dp_donorrecord != dp_unmodified_donorrecords[donor_id]:
-        row = dict_filtered_copy(dp_donorrecord, headers)
-        row['_MODIFIED_FIELDS'] = '|'.join(modified_fields(dp_unmodified_donorrecords[donor_id], dp_donorrecord))
+        row = utils.dict_filtered_copy(dp_donorrecord, headers)
+        row['_MODIFIED_FIELDS'] = '|'.join(utils.modified_fields(dp_unmodified_donorrecords[donor_id], dp_donorrecord))
         data.append(row)
-save_as_csv_file(FILENAME_DONOR_UPDATES, headers, data)
+utils.save_as_csv_file(FILENAME_DONOR_UPDATES, headers, data)
 
 # Output donor manual updates file
-save_as_text_file(FILENAME_DONOR_UPDATE_MESSAGES, dp_messages_existingdonorrecords)
+utils.save_as_text_file(FILENAME_DONOR_UPDATE_MESSAGES, dp_messages_existingdonorrecords)
 
 print('''
 Instructions:
