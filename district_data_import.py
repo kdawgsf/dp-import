@@ -1,23 +1,26 @@
 from __future__ import print_function
 from collections import defaultdict
+import argparse
 import datetime
 import sys
 
 import utils
 
-# TODO: Make the year code a command-line argument
 
-def usage(error=None):
-    if error:
-        print("ERROR:", error)
-    print('''
-Usage: python district_data_import.py <dp-report-271.csv> <district-data.csv>
-
-Creates files to be imported into DP to update data for existing families.
-    <dp-report-271.csv> should be the csv output from DP: Reports -> Custom Report Writer -> Include "NO MAIL" Names -> 271 -> CSV.
-    <district-data.csv> is the Excel spreadsheet received from the district, converted to csv.
-    ''')
-    sys.exit(1)
+parser = argparse.ArgumentParser()
+parser.add_argument("--dp-report",
+                    help="csv output from DP: Reports -> Custom Report Writer -> Include \"NO MAIL\" Names -> 271 -> CSV",
+                    required=True)
+parser.add_argument("--district-data",
+                    help="spreadsheet received from the district, converted to csv",
+                    required=True)
+parser.add_argument("--school-year",
+                    help="school year to use for new families, e.g. SY2016-17",
+                    required=True)
+group = parser.add_mutually_exclusive_group(required=True)
+group.add_argument("--new-year-import", help="specify that this is a beginning-of-year import, in which missing 8th graders will be graduated", action="store_true")
+group.add_argument("--mid-year-update", help="specify that this is a mid-year update", action="store_true")
+args = parser.parse_args()
 
 
 DP_REPORT_271_DONOR_HEADERS = ['DONOR_ID','FIRST_NAME','LAST_NAME','SP_FNAME','SP_LNAME',
@@ -39,7 +42,6 @@ DISTRICT_DATA_HEADERS = ['School', 'SystemID', 'Student Last Name', 'Student Fir
                          'Grade', 'entrycode', 'entrydate', 'exitdate', 'Family', 'Student', 'Family_Ident',
                          'enroll_status', 'Comment', 'PTA_BCE_Permit']
 
-SCHOOL_YEAR = 'SY2016-17'
 TODAY_STR = datetime.date.today().strftime('%m/%d/%Y')
 
 FILENAME_STUDENT_UPDATES = '01-student-updates.csv'
@@ -60,12 +62,6 @@ def gen_donor_id():
 def gen_other_id():
     return -1 * gen_next_value('OTHER_ID')
 
-if len(sys.argv) != 3:
-    usage()
-
-filename_dp_report_271 = sys.argv[1]
-filename_district_data = sys.argv[2]
-
 print("Input files:")
 
 # DP donors keyed by DONOR_ID
@@ -82,7 +78,7 @@ dp_stu_number_to_other_ids = defaultdict(list)
 
 # Load DP data
 includes_nomail = False
-for row in utils.load_csv_file(filename_dp_report_271, DP_REPORT_271_HEADERS):
+for row in utils.load_csv_file(args.dp_report, DP_REPORT_271_HEADERS):
     # Process donor-level info
     donor_id = row['DONOR_ID']
     dp_donorrecord = dict((header, row[header]) for header in DP_REPORT_271_DONOR_HEADERS)
@@ -111,12 +107,12 @@ for row in utils.load_csv_file(filename_dp_report_271, DP_REPORT_271_HEADERS):
         includes_nomail = True
 
 if not includes_nomail:
-    print("%s must include \"NO MAIL\" donors. Please select 'Include \"NO MAIL\" Names' and regenerate the report." % filename_dp_report_271)
+    print("%s must include \"NO MAIL\" donors. Please select 'Include \"NO MAIL\" Names' and regenerate the report." % args.dp_report)
     sys.exit(1)
 
 # Load district data keyed off student number ("system id" there)
 district_records = {}
-for row in utils.load_csv_file(filename_district_data, DISTRICT_DATA_HEADERS):
+for row in utils.load_csv_file(args.district_data, DISTRICT_DATA_HEADERS):
     district_records[row['SystemID']] = row
 
 # Make updates for existing students
@@ -129,7 +125,7 @@ for (other_id, dp_studentrecord) in dp_studentrecords.iteritems():
         # District data has 6th graders at the elementary schools, so manually update these
         if dp_studentrecord['GRADE'] == '6':
             dp_studentrecord['SCHOOL'] = 'BIS'
-    elif dp_studentrecord['GRADE'] == '8' and dp_studentrecord['SCHOOL'] == 'BIS':
+    elif args.new_year_import and dp_studentrecord['GRADE'] == '8' and dp_studentrecord['SCHOOL'] == 'BIS':
         dp_studentrecord['GRADE'] = '9'
         dp_studentrecord['SCHOOL'] = 'ALUM'
     elif dp_studentrecord['SCHOOL'] != 'ALUM':
@@ -227,7 +223,7 @@ for stu_number, district_record in district_records.iteritems():
             'GUARDIAN': district_record['Guardian'],
             'GUARD_EMAIL': district_record['GuardianEmail'],
             'DONOR_TYPE': 'IN',
-            'FY_JOIN_BSD': SCHOOL_YEAR,
+            'FY_JOIN_BSD': args.school_year,
             'RECEIPT_DELIVERY': 'E',
             'NOMAIL': 'N',
             'NOMAIL_REASON': ''
