@@ -1,19 +1,8 @@
 import csv
+import datetime
 import sys
 
-# Mapping of district school name to dp school code
-DISTRICT_SCHOOL_MAPPING = {
-    'Burlingame Intermediate School': 'BIS',
-    'Franklin Elementary School': 'FRANKLIN',
-    'Hoover Elementary School': 'HOOVER',
-    'Lincoln Elementary School': 'LINCOLN',
-    'McKinley Elementary School': 'MCKINLEY',
-    'Roosevelt Elementary School': 'ROOSEVELT',
-    'Washington Elementary School': 'WASHINGTON',
-}
-
-def district_school_to_dp_school(name):
-    return DISTRICT_SCHOOL_MAPPING[name]
+TODAY_STR = datetime.date.today().strftime('%m/%d/%Y')
 
 
 def validate_headers(filename, expected, actual):
@@ -76,14 +65,6 @@ def modified_fields(old_dict, new_dict):
     return fields
 
 
-def dp_grade_for_district_record(district_record):
-    # District data uses grade 0 for both TK and Kindergarten
-    if district_record['entrycode'] == 'TK':
-        return "-1"
-    else:
-        return district_record['Grade']
-
-
 def list_with_mods(l, add=[], remove=[]):
     res = l + add
     for v in remove:
@@ -97,3 +78,6 @@ def dict_filtered_copy(dict_to_copy, keys_to_copy):
         if key in dict_to_copy:
             res[key] = dict_to_copy[key]
     return res
+
+def normalize_email(email):
+    return email.lower().strip()
