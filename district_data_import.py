@@ -66,6 +66,10 @@ for stu_number in district_records:
     family_ident = district_records[stu_number]['Family_Ident']
     family_ident_to_stu_numbers[family_ident].append(stu_number)
 
+# TODO Matching code should go here. We have 3 different ways to match district records to 1 or more donors. For each student, we should use the first successful strategy:
+# 1. Match based on SystemID (in district data) / STU_NUMBER (in dp data)
+# 2. Match based on being in same family (same Family_Ident in district data) as a student who a) has existing donors and b) has the same last name
+# 3. Match based on the DP fields that it uses for matching: FIRST_NAME (first 8 chars), LAST_NAME (first 10 chars), ADDRESS (first 8 chars), ZIP (first 5 chars).
 
 # Add new students, either to existing or new families
 for stu_number, district_record in district_records.iteritems():
