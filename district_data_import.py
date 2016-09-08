@@ -108,13 +108,12 @@ for stu_number, district_record in district_records.iteritems():
                 dp_donorrecord['GUARD_EMAIL'] = guard_email
 
 
-# Single-donor students' donors are easy to update, because we don't need to choose which donor to update.
-# Multi-donor students' donors (mostly divorced parents) are handled by the manual update process following
+# Compute donor-level updates
 for stu_number, district_record in district_records.iteritems():
     dp_studentrecords = dp.get_students_for_stu_number(stu_number)
 
-    # Restrict this logic to single-donor students
     if len(dp_studentrecords) == 1:
+        # Logic for single-donor students is simpler (typically married parents or only one parent)
         dp_studentrecord = next(iter(dp_studentrecords))
         dp_donorrecord = dp.get_donor(dp_studentrecord['DONOR_ID'])
 
@@ -134,6 +133,17 @@ for stu_number, district_record in district_records.iteritems():
         parent2_email_field = 'SPOUSE_EMAIL' if district_record['Parent1 Last Name'] else 'EMAIL'
         if district_record['Parent2Email'] and not dp_donorrecord[parent2_email_field]:
             dp_donorrecord[parent2_email_field] = district_record['Parent2Email']
+    else:
+        # For multi-donor students, typically both Parent1 and Parent2 are separate donors, and the "spouse" is either
+        # the ex-spouse or a non-parent spouse. So, we will match the donor's first name against either Parent1 or
+        # Parent2's first name and update the email address if applicable.
+        for dp_studentrecord in dp_studentrecords:
+            dp_donorrecord = dp.get_donor(dp_studentrecord['DONOR_ID'])
+            if not dp_donorrecord['EMAIL']:
+                if district_record['Parent1Email'] and dp_donorrecord['FIRST_NAME'] == district_record['Parent 1 First Name']:
+                    dp_donorrecord['EMAIL'] = district_record['Parent1Email']
+                elif district_record['Parent2Email'] and dp_donorrecord['FIRST_NAME'] == district_record['Parent 2 First Name']:
+                    dp_donorrecord['EMAIL'] = district_record['Parent2Email']
 
 
 # Compute manual updates for (most likely) divorced donors
@@ -147,33 +157,14 @@ for stu_number, district_record in district_records.iteritems():
         continue
 
     district_address = '%s %s %s %s' % (district_record['street'], district_record['city'], district_record['state'], district_record['zip'])
-    district_emails = set([utils.normalize_email(district_record['Parent1Email']), utils.normalize_email(district_record['Parent2Email'])])
-    district_emails.discard('')
 
     # Cases we are trying to detect:
     # 1. District address is not present on any of the donors
-    # 2. At least one donor has a missing email, and there is a district email that is not present on any of the donors
-    #    Note that we have to normalize the email address to avoid triggering spurious updates for case and whitespace.
     dp_addresses_by_donor_id = dict()
-    dp_emails_by_donor_id = defaultdict(list)
-    dp_emails = set()
-    has_empty_email = False
     for dp_studentrecord in dp_studentrecords:
         donor_id = dp_studentrecord['DONOR_ID']
         dp_donorrecord = dp.get_donor(donor_id)
         dp_addresses_by_donor_id[donor_id] = '%s %s %s %s' % (dp_donorrecord['ADDRESS'], dp_donorrecord['CITY'], dp_donorrecord['STATE'], dp_donorrecord['ZIP'])
-        if dp_donorrecord['EMAIL']:
-            dp_emails.add(utils.normalize_email(dp_donorrecord['EMAIL']))
-            dp_emails_by_donor_id[donor_id].append(dp_donorrecord['EMAIL'])
-        else:
-            has_empty_email = True
-        if dp_donorrecord['SPOUSE_EMAIL']:
-            dp_emails.add(utils.normalize_email(dp_donorrecord['SPOUSE_EMAIL']))
-            dp_emails_by_donor_id[donor_id].append(dp_donorrecord['SPOUSE_EMAIL'])
-        else:
-            # Only count spouse mail as empty if there is a spouse last name and no explanatory text like "(divorced) or "(separated)"
-            if dp_donorrecord['SP_LNAME'] and "(" not in dp_donorrecord['SP_LNAME']:
-                has_empty_email = True
 
     donor_ids_for_student = set(dp_addresses_by_donor_id.keys())
     if dp_messages_donor_ids.issuperset(donor_ids_for_student):
@@ -184,8 +175,7 @@ for stu_number, district_record in district_records.iteritems():
         dp_messages_donor_ids.update(donor_ids_for_student)
 
     flag_address = district_address not in dp_addresses_by_donor_id.values()
-    flag_email = has_empty_email and not dp_emails.issuperset(district_emails)
-    if flag_address or flag_email:
+    if flag_address:
         str_list = list()
         str_list.append("Found MANUAL UPDATE for student %s %s (%s) with %d donor records:" %
                         (district_record['Student First Name'], district_record['Student Last Name'], stu_number, len(dp_studentrecords)))
@@ -193,13 +183,6 @@ for stu_number, district_record in district_records.iteritems():
             for donor_id, dp_address in dp_addresses_by_donor_id.iteritems():
                 str_list.append("  Donor %s address: %s" % (donor_id, dp_address))
             str_list.append("  District address: %s" % district_address)
-        if flag_email:
-            for donor_id, dp_emails_for_donor in dp_emails_by_donor_id.iteritems():
-                str_list.append("  Donor %s emails: %s" % (donor_id, ', '.join(dp_emails_by_donor_id[donor_id])))
-            if district_record['Parent1Email']:
-                str_list.append("  District Parent1Email: " + district_record['Parent1Email'])
-            if district_record['Parent2Email']:
-                str_list.append("  District Parent2Email: " + district_record['Parent2Email'])
         dp_messages_existingdonorrecords.append('\n'.join(str_list) + '\n\n')
 
 
