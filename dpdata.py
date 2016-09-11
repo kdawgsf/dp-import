@@ -1,4 +1,4 @@
-from collections import defaultdict
+from collections import defaultdict, OrderedDict
 
 import utils
 
@@ -13,7 +13,11 @@ DP_REPORT_271_STUDENT_HEADERS = ['DONOR_ID','STU_NUMBER','STU_FNAME','STU_LNAME'
 
 DP_REPORT_271_HEADERS = list(set(DP_REPORT_271_DONOR_HEADERS + DP_REPORT_271_STUDENT_HEADERS))
 
+
 class DPData:
+    # These are the default match fields (and number of chars to compare) for DP donors
+    __DONOR_MATCH_FIELDS = OrderedDict([('LAST_NAME', 10), ('FIRST_NAME', 8), ('ADDRESS', 8), ('ZIP', 5)])
+
     def __init__(self, dp_report_filename):
         self.__donorrecords = dict()
         self.__unmodified_donorrecords = dict()
@@ -60,15 +64,15 @@ class DPData:
         return next
 
     def gen_donor_id(self):
-        return -1 * self.__next_seq_value('DONOR_ID')
+        return str(-1 * self.__next_seq_value('DONOR_ID'))
 
     def gen_other_id(self):
-        return -1 * self.__next_seq_value('OTHER_ID')
+        return str(-1 * self.__next_seq_value('OTHER_ID'))
 
     def add_donor(self, donorrecord):
-        donor_id = donorrecord['DONOR_ID']
-        if not donor_id:
+        if 'DONOR_ID' not in donorrecord:
             raise ValueError("DONOR_ID required")
+        donor_id = donorrecord['DONOR_ID']
         if donor_id in self.__donorrecords:
             raise ValueError("DONOR_ID %s already present" % donor_id)
         self.__donorrecords[donor_id] = donorrecord
@@ -80,9 +84,9 @@ class DPData:
         return self.__donorrecords.values()
 
     def add_student(self, studentrecord):
-        donor_id = studentrecord['DONOR_ID']
-        if not donor_id:
+        if 'DONOR_ID' not in studentrecord:
             raise ValueError("DONOR_ID required")
+        donor_id = studentrecord['DONOR_ID']
         other_id = studentrecord['OTHER_ID']
         if not other_id:
             raise ValueError("OTHER_ID required")
@@ -193,3 +197,10 @@ class DPData:
             return utils.modified_fields(self.__unmodified_studentrecords[donor_or_student['OTHER_ID']], donor_or_student)
         else:
             return utils.modified_fields(self.__unmodified_donorrecords[donor_or_student['DONOR_ID']], donor_or_student)
+
+    def compute_match_key(self, donorrecord):
+        """Returns a string representing the concatenation of all the match key values, trimmed/padded to size"""
+        key = ''
+        for field, chars_to_compare in self.__DONOR_MATCH_FIELDS.iteritems():
+            key += donorrecord.get(field).translate(None, ' -')[:chars_to_compare].upper().ljust(chars_to_compare)
+        return key

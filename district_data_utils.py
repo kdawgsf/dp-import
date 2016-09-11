@@ -32,29 +32,21 @@ def dp_grade_for_district_record(district_record):
         return district_record['Grade']
 
 
-def create_dp_studentrecord(donor_id, other_id, district_record):
+def create_dp_studentrecord(district_record):
     """Create a DP studentrecord from the given district record"""
-    if not donor_id:
-        raise ValueError("donor_id param required")
-    if not other_id:
-        raise ValueError("other_id param required")
     dp_studentrecord = {
-        'DONOR_ID': donor_id,
         'STU_LNAME': district_record['Student Last Name'],
         'STU_FNAME': district_record['Student First Name'],
         'STU_NUMBER': district_record['SystemID'],
         'SCHOOL': district_school_to_dp_school(district_record['School']),
         'GRADE': dp_grade_for_district_record(district_record),
-        'OTHER_ID': other_id,
         'OTHER_DATE': utils.TODAY_STR
     }
     return dp_studentrecord
 
 
-def create_dp_donorrecord(donor_id, district_record, school_year):
+def create_dp_donorrecord(district_record, school_year):
     """Create a DP donorrecord from the given district record (without creating any studentrecords)."""
-    if not donor_id:
-        raise ValueError("donor_id param required")
     if not school_year:
         raise ValueError("school_year param required")
     main_l_name = district_record['Parent1 Last Name']
@@ -83,7 +75,6 @@ def create_dp_donorrecord(donor_id, district_record, school_year):
         informal_sal = main_f_name
 
     dp_donorrecord = {
-        'DONOR_ID': donor_id,
         'FIRST_NAME': main_f_name,
         'LAST_NAME': main_l_name,
         'SP_FNAME': spouse_f_name,
