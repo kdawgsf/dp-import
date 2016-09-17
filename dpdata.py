@@ -126,20 +126,30 @@ class DPData:
         for dp_donorrecord in self.get_donors():
             donor_id = dp_donorrecord['DONOR_ID']
             dp_studentrecords = self.get_students_for_donor(donor_id)
-            student_count = len(dp_studentrecords)
-            nobsd_count = 0
-            for dp_studentrecord in dp_studentrecords:
-                if dp_studentrecord['SCHOOL'] == 'NOBSD':
-                    nobsd_count += 1
 
-            if dp_donorrecord['NOMAIL'] == 'N' and nobsd_count > 0 and nobsd_count == student_count:
-                # Set NOMAIL for donors with all-NOBSD students
-                dp_donorrecord['NOMAIL'] = 'Y'
-                dp_donorrecord['NOMAIL_REASON'] = 'NO'
-                dp_donorrecord['DONOR_TYPE'] = 'NO'
-            elif dp_donorrecord['NOMAIL'] == 'Y' and dp_donorrecord[
-                'NOMAIL_REASON'] == 'NO' and nobsd_count < student_count:
-                # Unset NOMAIL for donors with non-NOBSD students and reason NO
+            student_count_district = 0
+            student_count_nobsd = 0
+            student_count_converted_to_nobsd = 0
+
+            for dp_studentrecord in dp_studentrecords:
+                if dp_studentrecord['SCHOOL'] not in ['ALUM','NOBSD']:
+                    student_count_district += 1
+                elif dp_studentrecord['SCHOOL'] == 'NOBSD':
+                    student_count_nobsd += 1
+                    if self.__unmodified_studentrecords[dp_studentrecord['OTHER_ID']]['SCHOOL'] != 'NOBSD':
+                        student_count_converted_to_nobsd += 1
+
+            if dp_donorrecord['NOMAIL'] == 'N' and student_count_district == 0:
+                # Donor has no current students...
+                # If all students are NOBSD, then they get flipped to NO
+                # Or if they removed kids from the district, then they get flipped to NO
+                # The other case here is various combinations of ALUM students
+                if student_count_nobsd == len(dp_studentrecords) or student_count_converted_to_nobsd > 0:
+                    dp_donorrecord['NOMAIL'] = 'Y'
+                    dp_donorrecord['NOMAIL_REASON'] = 'NO'
+                    dp_donorrecord['DONOR_TYPE'] = 'NO'
+            elif dp_donorrecord['NOMAIL'] == 'Y' and dp_donorrecord['NOMAIL_REASON'] == 'NO' and student_count_district > 0:
+                # They have kids in the district, so we need to unset NOMAIL
                 dp_donorrecord['NOMAIL'] = 'N'
                 dp_donorrecord['NOMAIL_REASON'] = ''
                 dp_donorrecord['DONOR_TYPE'] = 'IN'
