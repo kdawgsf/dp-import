@@ -43,6 +43,15 @@ for row in utils.load_csv_file(args.district_data, district_data_utils.DISTRICT_
     district_records[row['SystemID']] = row
 
 
+# For new-year imports, update grade for all students
+# For returning students, this will be overridden on the next step
+if args.new_year_import:
+    for dp_studentrecord in dp.get_students():
+        grade = dp_studentrecord['GRADE']
+        if grade and int(grade) < 9:
+            dp_studentrecord['GRADE'] = str(1 + int(grade))
+
+
 # Make updates for existing students
 for dp_studentrecord in dp.get_students():
     stu_number = dp_studentrecord['STU_NUMBER']
@@ -53,8 +62,7 @@ for dp_studentrecord in dp.get_students():
         # District data has 6th graders at the elementary schools, so manually update these
         if dp_studentrecord['GRADE'] == '6':
             dp_studentrecord['SCHOOL'] = 'BIS'
-    elif args.new_year_import and dp_studentrecord['GRADE'] == '8' and dp_studentrecord['SCHOOL'] == 'BIS':
-        dp_studentrecord['GRADE'] = '9'
+    elif args.new_year_import and dp_studentrecord['GRADE'] == '9' and dp_studentrecord['SCHOOL'] == 'BIS':
         dp_studentrecord['SCHOOL'] = 'ALUM'
     elif dp_studentrecord['SCHOOL'] != 'ALUM':
         dp_studentrecord['SCHOOL'] = 'NOBSD'
