@@ -120,6 +120,7 @@ class DPData:
 
     def scrub_data(self):
         self.__fixup_nomail_flag()
+        self.__copy_spouse_email()
 
     def __fixup_nomail_flag(self):
         # Fix up NOMAIL stuff
@@ -158,6 +159,12 @@ class DPData:
             if dp_donorrecord['NOMAIL'] == 'N' and dp_donorrecord['NOMAIL_REASON']:
                 # Empty out NOMAIL_REASON if NOMAIL not set
                 dp_donorrecord['NOMAIL_REASON'] = ''
+
+    def __copy_spouse_email(self):
+        # we need to have email field populated even if the district has no parent1 email
+        for dp_donorrecord in self.get_donors():
+            if dp_donorrecord['SPOUSE_EMAIL'] and not dp_donorrecord['EMAIL']:
+                dp_donorrecord['EMAIL'] = dp_donorrecord['SPOUSE_EMAIL']
 
     def write_updated_students_file(self, csv_filename):
         data = list()
