@@ -152,13 +152,13 @@ class DPData:
             elif dp_donorrecord['NOMAIL'] == 'Y' and dp_donorrecord['NOMAIL_REASON'] == 'NO' and student_count_district > 0:
                 # They have kids in the district, so we need to unset NOMAIL
                 dp_donorrecord['NOMAIL'] = 'N'
-                dp_donorrecord['NOMAIL_REASON'] = ''
+                dp_donorrecord['NOMAIL_REASON'] = 'NU' # Signifies null (cannot set to actual null on import)
                 dp_donorrecord['DONOR_TYPE'] = 'IN'
 
             # Legacy data cleanup
-            if dp_donorrecord['NOMAIL'] == 'N' and dp_donorrecord['NOMAIL_REASON']:
+            if dp_donorrecord['NOMAIL'] == 'N' and dp_donorrecord['NOMAIL_REASON'] not in ['','NU']:
                 # Empty out NOMAIL_REASON if NOMAIL not set
-                dp_donorrecord['NOMAIL_REASON'] = ''
+                dp_donorrecord['NOMAIL_REASON'] = 'NU'
 
     def __copy_spouse_email(self):
         # we need to have email field populated even if the district has no parent1 email
