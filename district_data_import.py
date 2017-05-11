@@ -16,7 +16,7 @@ FILENAME_DONOR_UPDATE_MESSAGES = '05-donor-manual-updates.txt'
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--dp-report",
-                    help="csv output from DP: Reports -> Custom Report Writer -> Include \"NO MAIL\" Names -> 271 -> CSV",
+                    help="csv output from DP: Reports -> Report Center -> 271 Name Contacts Other -> Include \"NO MAIL\" Names -> run report -> export as .csv",
                     required=True)
 parser.add_argument("--district-data",
                     help="spreadsheet received from the district, converted to csv",
@@ -167,7 +167,7 @@ for stu_number, district_record in district_records.iteritems():
             dp_donorrecord['EMAIL'] = district_record['Parent1Email']
 
         # Update email based on parent2 email
-        parent2_email_field = 'SPOUSE_EMAIL' if district_record['Parent1 Last Name'] else 'EMAIL'
+        parent2_email_field = 'SPOUSE_EMAIL' if district_record['Parent 1 Last Name'] else 'EMAIL'
         if district_record['Parent2Email'] and not dp_donorrecord[parent2_email_field]:
             dp_donorrecord[parent2_email_field] = district_record['Parent2Email']
     else:
@@ -245,21 +245,25 @@ print('''
 Instructions:
     %s: updates to existing students. Import first:
                  Utilities -> Import,
-                 Select Type of Import = Update Existing Records,
-                 Select Type of Records = Other Info,
+                 When importing this file: Update existing records in a specific table,
+                 My import file includes: Other Info,
+                 Record matching: Off,
                  Ignore donor_id and _modified_fields
     %s: creates new students for existing families. Import second:
                  Utilities -> Import,
-                 Select Type of Import = Insert New Records,
-                 Select Type of Records = Other Info
+                 When importing this file: Insert new transaction records for existing donors,
+                 My import file includes: Other Info,
+                 Record matching: Off
     %s: creates records for new donors (and potentially updates some existing ones) / students. Import third:
                  Utilities -> Import,
-                 Select Type of Import = Insert New and / or Update Existing Records,
-                 Select Type of Records = Names, Addresses, Other Info
+                 When importing this file: Update Existing Records then insert the rest as new,
+                 My import file includes: Main Records and Other Info Transactions,
+                 Record matching: On
     %s: updates to existing donors. Import last:
                  Utilities -> Import,
-                 Select Type of Import = Insert New and / or Update Existing Records,
-                 Select Type of Records = Names and Addresses,
+                 When importing this file: Update Existing Records then insert the rest as new,
+                 My import file includes: Main Records Only,
+                 Record matching: On,
                  Ignore _modified_fields
     %s: manual updates to existing donors. Update manually:
                  Look up existing records and apply updates as necessary
