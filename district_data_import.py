@@ -70,14 +70,7 @@ for dp_studentrecord in dp.get_students():
 
 # We have 3 different ways to match district records to 1 or more donors. For each student, we use the first successful strategy:
 # 1. Match based on SystemID (in district data) / STU_NUMBER (in dp data)
-# 2. Match based on being in same family (same Family_Ident in district data) as a student who has existing donors
-# 3. Match based on the DP fields that it uses for matching
-
-# Build up students for each family so that we can match new students in each family
-family_ident_to_stu_numbers = defaultdict(list)
-for stu_number in district_records:
-    family_ident = district_records[stu_number]['Family_Ident']
-    family_ident_to_stu_numbers[family_ident].append(stu_number)
+# 2. Match based on the DP fields that it uses for matching
 
 # Populate match key for all existing donors
 match_key_to_donor_id = dict()
@@ -92,45 +85,34 @@ for dp_donorrecord in dp.get_donors():
 for stu_number, district_record in district_records.iteritems():
     if dp.get_students_for_stu_number(stu_number):
         continue
+
     donor_ids_encountered = set()
-    for sibling_stu_number in family_ident_to_stu_numbers[district_record['Family_Ident']]:
-        for dp_siblingrecord in dp.get_students_for_stu_number(sibling_stu_number):
-            donor_id = dp_siblingrecord['DONOR_ID']
-            if donor_id not in donor_ids_encountered:
-                donor_ids_encountered.add(donor_id)
-                dp_studentrecord = district_data_utils.create_dp_studentrecord(district_record)
-                dp_studentrecord['DONOR_ID'] = donor_id
-                dp_studentrecord['OTHER_ID'] = dp.gen_other_id()
-                dp.add_student(dp_studentrecord)
 
-    if not donor_ids_encountered:
-        # At this point we know that: 
-        #   (a) this student isn't in DP (i.e., this is new student)
-        #   (b) this student doesn't have an sibling currently in BSD
-        # Chances are the donor is also new, unless 
-        #   (i) the donor has a kid that has graduated already OR, 
-        #   (ii) this student is returning after a break from BSD, but somehow was given a new student ID
-        # If either (i) or (ii) is true, then DP will not create a new record, but update the existing donor record, so we should be okay. 
-        # At any rate, we have to prepare a new record for this donor, with several custom fields
-        #print("Creating record for new donor w/ new student %s" % (stu_number))
-        dp_donorrecord_for_matching = district_data_utils.create_dp_donorrecord(district_record=district_record, school_year=args.school_year)
-        match_key = dp.compute_match_key(dp_donorrecord_for_matching)
-        if match_key in match_key_to_donor_id:
-            # Use the matched donor rather than the one we created for matching purposes
-            donor_id = match_key_to_donor_id[match_key]
-        else:
-            # No match, so go ahead and add the new donor to DP
-            donor_id = dp.gen_donor_id()
-            match_key_to_donor_id[match_key] = donor_id
-            dp_donorrecord_for_matching['DONOR_ID'] = donor_id
-            dp.add_donor(dp_donorrecord_for_matching)
+    # At this point we know that: 
+    #   (a) this student isn't in DP (i.e., this is new student)
+    # Chances are the donor is also new, unless 
+    #   (i) this is a new student on an existing family, and DP will match against the existing donor
+    #   (ii) this student is returning after a break from BSD, but somehow was given a new student ID
+    # If either (i) or (ii) is true, then DP will not create a new record, but update the existing donor record, so we should be okay. 
+    # At any rate, we have to prepare a new record for this donor, with several custom fields
+    #print("Creating record for new donor w/ new student %s" % (stu_number))
+    dp_donorrecord_for_matching = district_data_utils.create_dp_donorrecord(district_record=district_record, school_year=args.school_year)
+    match_key = dp.compute_match_key(dp_donorrecord_for_matching)
+    if match_key in match_key_to_donor_id:
+        # Use the matched donor rather than the one we created for matching purposes
+        donor_id = match_key_to_donor_id[match_key]
+    else:
+        # No match, so go ahead and add the new donor to DP
+        donor_id = dp.gen_donor_id()
+        match_key_to_donor_id[match_key] = donor_id
+        dp_donorrecord_for_matching['DONOR_ID'] = donor_id
+        dp.add_donor(dp_donorrecord_for_matching)
 
-        dp_studentrecord = district_data_utils.create_dp_studentrecord(district_record)
-        dp_studentrecord['DONOR_ID'] = donor_id
-        dp_studentrecord['OTHER_ID'] = dp.gen_other_id()
-        dp.add_student(dp_studentrecord)
+    dp_studentrecord = district_data_utils.create_dp_studentrecord(district_record)
+    dp_studentrecord['DONOR_ID'] = donor_id
+    dp_studentrecord['OTHER_ID'] = dp.gen_other_id()
+    dp.add_student(dp_studentrecord)
 
-    #End if no donor ID records found
 #End loop over student IDs in district data
 
 
@@ -167,7 +149,7 @@ for stu_number, district_record in district_records.iteritems():
             dp_donorrecord['EMAIL'] = district_record['Parent1Email']
 
         # Update email based on parent2 email
-        parent2_email_field = 'SPOUSE_EMAIL' if district_record['Parent 1 Last Name'] else 'EMAIL'
+        parent2_email_field = 'SPOUSE_EMAIL' if district_record['Parent1 Last Name'] else 'EMAIL'
         if district_record['Parent2Email'] and not dp_donorrecord[parent2_email_field]:
             dp_donorrecord[parent2_email_field] = district_record['Parent2Email']
     else:
