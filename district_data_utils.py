@@ -2,11 +2,11 @@ import utils
 
 DISTRICT_DATA_HEADERS = ['School', 'SystemID', 'Student Last Name', 'Student First Name', 'street', 'city',
                          'state', 'zip', 'Mailing_Street', 'Mailing_City', 'Mailing_State', 'Mailing_Zip',
-                         'home_phone', 'Parent 1 Last Name', 'Parent 1 First Name', 'Parent 2 Last Name',
+                         'home_phone', 'Parent1 Last Name', 'Parent 1 First Name', 'Parent 2 Last Name',
                          'Parent 2 First Name', 'Parent1DayPhone', 'Parent2DayPhone', 'Parent1Email',
                          'Parent2Email', 'Guardian', 'GuardianDayPhone', 'GuardianEmail',
-                         'Grade', 'entrycode', 'entrydate', 'exitdate', 'Family', 'Student', 'Family_Ident',
-                         'enroll_status', 'Comment']
+                         'Grade', 'entrycode',
+                         'Comment']
 
 # Mapping of district school name to dp school code
 DISTRICT_SCHOOL_MAPPING = {
@@ -49,7 +49,7 @@ def create_dp_donorrecord(district_record, school_year):
     """Create a DP donorrecord from the given district record (without creating any studentrecords)."""
     if not school_year:
         raise ValueError("school_year param required")
-    main_l_name = district_record['Parent 1 Last Name']
+    main_l_name = district_record['Parent1 Last Name']
     if len(main_l_name) != 0:
         main_f_name = district_record['Parent 1 First Name']
         spouse_f_name = district_record['Parent 2 First Name']
