@@ -4,9 +4,11 @@ DISTRICT_DATA_HEADERS = ['School', 'SystemID', 'Student Last Name', 'Student Fir
                          'state', 'zip', 'Mailing_Street', 'Mailing_City', 'Mailing_State', 'Mailing_Zip',
                          'home_phone', 'Parent1 Last Name', 'Parent 1 First Name', 'Parent 2 Last Name',
                          'Parent 2 First Name', 'Parent1DayPhone', 'Parent2DayPhone', 'Parent1Email',
-                         'Parent2Email', 'Guardian', 'GuardianDayPhone', 'GuardianEmail',
-                         'Grade', 'entrycode',
-                         'Comment']
+                         'Parent2Email', 'guardian', 'guardianemail',
+                         'Grade',
+                         'Comment',
+                         'entrycode', 'entrydate', 'Enroll_Status', 'FamilyID', 'exitdate']
+# 'GuardianDayPhone'
 
 # Mapping of district school name to dp school code
 DISTRICT_SCHOOL_MAPPING = {
@@ -92,8 +94,8 @@ def create_dp_donorrecord(district_record, school_year):
         'HOME_PHONE': district_record['home_phone'],
         'MOBILE_PHONE': district_record['Parent1DayPhone'],
         'SPOUSE_MOBILE': district_record['Parent2DayPhone'],
-        'GUARDIAN': district_record['Guardian'],
-        'GUARD_EMAIL': district_record['GuardianEmail'],
+        'GUARDIAN': district_record['guardian'],
+        'GUARD_EMAIL': district_record['guardianemail'],
         'DONOR_TYPE': 'IN',
         'FY_JOIN_BSD': school_year,
         'RECEIPT_DELIVERY': 'E',
