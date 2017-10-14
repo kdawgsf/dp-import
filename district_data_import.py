@@ -119,7 +119,7 @@ for stu_number, district_record in district_records.iteritems():
 # Update GUARD_EMAIL on existing donors
 # Requirement is to update this for all donors for a student (if changed)
 for stu_number, district_record in district_records.iteritems():
-    guard_email = district_record['GuardianEmail']
+    guard_email = district_record['guardianemail']
     if guard_email:
         for dp_studentrecord in dp.get_students_for_stu_number(stu_number):
             dp_donorrecord = dp.get_donor(dp_studentrecord['DONOR_ID'])
@@ -142,6 +142,15 @@ for stu_number, district_record in district_records.iteritems():
             'CITY': district_record['city'],
             'STATE': district_record['state'],
             'ZIP': district_record['zip']
+        })
+
+        # Update for potential switch of parent name order
+        dp_donorrecord_with_pnames = district_data_utils.create_dp_donorrecord(district_record=district_record, school_year=args.school_year)
+        dp_donorrecord.update({
+            'FIRST_NAME': dp_donorrecord_with_pnames['FIRST_NAME'],
+            'LAST_NAME': dp_donorrecord_with_pnames['LAST_NAME'],
+            'SP_FNAME': dp_donorrecord_with_pnames['SP_FNAME'],
+            'SP_LNAME': dp_donorrecord_with_pnames['SP_LNAME'],
         })
 
         # Update email based on parent1 email
