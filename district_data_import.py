@@ -119,7 +119,7 @@ for stu_number, district_record in district_records.iteritems():
 # Update GUARD_EMAIL on existing donors
 # Requirement is to update this for all donors for a student (if changed)
 for stu_number, district_record in district_records.iteritems():
-    guard_email = district_record['GuardianEmail']
+    guard_email = district_record['guardianemail']
     if guard_email:
         for dp_studentrecord in dp.get_students_for_stu_number(stu_number):
             dp_donorrecord = dp.get_donor(dp_studentrecord['DONOR_ID'])
