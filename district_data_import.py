@@ -151,6 +151,10 @@ for stu_number, district_record in district_records.iteritems():
             'LAST_NAME': dp_donorrecord_with_pnames['LAST_NAME'],
             'SP_FNAME': dp_donorrecord_with_pnames['SP_FNAME'],
             'SP_LNAME': dp_donorrecord_with_pnames['SP_LNAME'],
+            'EMAIL': dp_donorrecord_with_pnames['EMAIL'],
+            'SPOUSE_EMAIL': dp_donorrecord_with_pnames['SPOUSE_EMAIL'],
+            'MOBILE_PHONE': dp_donorrecord_with_pnames['MOBILE_PHONE'],
+            'SPOUSE_MOBILE': dp_donorrecord_with_pnames['SPOUSE_MOBILE']
         })
 
         # Update email based on parent1 email
