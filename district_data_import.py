@@ -144,6 +144,19 @@ for stu_number, district_record in district_records.iteritems():
             'ZIP': district_record['zip']
         })
 
+        # Update for potential switch of parent name order
+        dp_donorrecord_with_pnames = district_data_utils.create_dp_donorrecord(district_record=district_record, school_year=args.school_year)
+        dp_donorrecord.update({
+            'FIRST_NAME': dp_donorrecord_with_pnames['FIRST_NAME'],
+            'LAST_NAME': dp_donorrecord_with_pnames['LAST_NAME'],
+            'SP_FNAME': dp_donorrecord_with_pnames['SP_FNAME'],
+            'SP_LNAME': dp_donorrecord_with_pnames['SP_LNAME'],
+            'EMAIL': dp_donorrecord_with_pnames['EMAIL'],
+            'SPOUSE_EMAIL': dp_donorrecord_with_pnames['SPOUSE_EMAIL'],
+            'MOBILE_PHONE': dp_donorrecord_with_pnames['MOBILE_PHONE'],
+            'SPOUSE_MOBILE': dp_donorrecord_with_pnames['SPOUSE_MOBILE']
+        })
+
         # Update email based on parent1 email
         if district_record['Parent1Email'] and not dp_donorrecord['EMAIL']:
             dp_donorrecord['EMAIL'] = district_record['Parent1Email']
