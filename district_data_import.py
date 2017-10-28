@@ -12,8 +12,8 @@ FILENAME_NEWSTUDENT = '02-new-students.csv'
 FILENAME_NEWDONOR = '03-new-donors.csv'
 FILENAME_DONOR_UPDATES = '04-donor-updates.csv'
 FILENAME_DONOR_UPDATE_MESSAGES = '05-donor-manual-updates.txt'
-FILENAME_INFORMAL_SAL_UPDATES = '06-informal-sal-updates.csv'
-FILENAME_INFORMAL_SAL_PERSONALIZED = '07-informal-sal-personalized.csv'
+FILENAME_INFORMAL_SAL_UPDATES = 'REF-informal-sal-updates.csv'
+FILENAME_INFORMAL_SAL_PERSONALIZED = 'REF-informal-sal-personalized.csv'
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--dp-report",
@@ -161,7 +161,9 @@ for stu_number, district_record in district_records.iteritems():
             'EMAIL': dp_donorrecord_with_pnames['EMAIL'],
             'SPOUSE_EMAIL': dp_donorrecord_with_pnames['SPOUSE_EMAIL'],
             'MOBILE_PHONE': dp_donorrecord_with_pnames['MOBILE_PHONE'],
-            'SPOUSE_MOBILE': dp_donorrecord_with_pnames['SPOUSE_MOBILE']
+            'SPOUSE_MOBILE': dp_donorrecord_with_pnames['SPOUSE_MOBILE'],
+            'SALUTATION': dp_donorrecord_with_pnames['SALUTATION'],
+            'OPT_LINE': dp_donorrecord_with_pnames['OPT_LINE']
         })
 
         # For informal salutations, we update it only if it is a straightforward switch of the parent name order. 
@@ -177,21 +179,19 @@ for stu_number, district_record in district_records.iteritems():
 
         row = utils.dict_filtered_copy(dp_donorrecord, informal_sal_headers)
         row['_CURR_INFORMAL_SAL'] = curr_informal_sal
-        if curr_main_f_name != dp_donorrecord['FIRST_NAME']: # The district data has caused a name switch
-            expected_informal_sal = create_informal_sal(dp_donorrecord['SP_FNAME'], dp_donorrecord['FIRST_NAME'])
-            new_informal_sal = create_informal_sal(dp_donorrecord['FIRST_NAME'], dp_donorrecord['SP_FNAME'])
-            row['INFORMAL_SAL'] = new_informal_sal
-            if curr_informal_sal == expected_informal_sal: # Informal salutation has not been personalized
-                # Uncomment this line if we want to include this change in the 04-file
-                # dp_donorrecord.update({ 'INFORMAL_SAL': new_informal_sal })
-                row['_ACTION'] = "Update"
-                dp_informal_sal_updates.append(row)
-                #mesg = "Update -- INFORMAL_SAL, " + curr_informal_sal + ", " + new_informal_sal
-            else:
-                row['_ACTION'] = "Leave-as-is"
-                dp_informal_sal_personalized.append(row)
-                #mesg = "No update -- personalized INFORMAL_SAL, " + curr_informal_sal + ", " + new_informal_sal
-            #print (mesg)
+        # Cannot use the conditional below as import may have already occured. 
+        #if curr_main_f_name != dp_donorrecord['FIRST_NAME']: # The district data has caused a name switch
+        potential_auto_informal_sal = create_informal_sal(dp_donorrecord['SP_FNAME'], dp_donorrecord['FIRST_NAME'])
+        new_informal_sal = create_informal_sal(dp_donorrecord['FIRST_NAME'], dp_donorrecord['SP_FNAME'])
+        row['INFORMAL_SAL'] = new_informal_sal
+        if curr_informal_sal == potential_auto_informal_sal: # Informal salutation has not been personalized
+            # Comment this line if we DO NOT want to include informal_sal update in the 04-file
+            dp_donorrecord.update({ 'INFORMAL_SAL': new_informal_sal })
+            row['_ACTION'] = "Update"
+            dp_informal_sal_updates.append(row)
+        else:
+            row['_ACTION'] = "Leave-as-is"
+            dp_informal_sal_personalized.append(row)
 
         # Update email based on parent1 email
         if district_record['Parent1Email'] and not dp_donorrecord['EMAIL']:
