@@ -160,7 +160,6 @@ for stu_number, district_record in district_records.iteritems():
             'SPOUSE_EMAIL': dp_donorrecord_for_update['SPOUSE_EMAIL'],
             'MOBILE_PHONE': dp_donorrecord_for_update['MOBILE_PHONE'],
             'SPOUSE_MOBILE': dp_donorrecord_for_update['SPOUSE_MOBILE'],
-            'SALUTATION': dp_donorrecord_for_update['SALUTATION'],
             'OPT_LINE': dp_donorrecord_for_update['OPT_LINE']
         })
 
@@ -171,7 +170,10 @@ for stu_number, district_record in district_records.iteritems():
         potential_auto_informal_sal = district_data_utils.create_informal_sal(dp_donorrecord['SP_FNAME'], dp_donorrecord['FIRST_NAME'])
         new_informal_sal = district_data_utils.create_informal_sal(dp_donorrecord['FIRST_NAME'], dp_donorrecord['SP_FNAME'])
         if curr_informal_sal == potential_auto_informal_sal: # Informal salutation has not been personalized
-            dp_donorrecord.update({ 'INFORMAL_SAL': new_informal_sal })
+            dp_donorrecord.update({ 
+                'SALUTATION': dp_donorrecord_for_update['SALUTATION'],
+                'INFORMAL_SAL': new_informal_sal 
+            })
 
         # Update email based on parent1 email
         if district_record['Parent1Email'] and not dp_donorrecord['EMAIL']:
