@@ -28,11 +28,7 @@ def district_school_to_dp_school(name):
 
 def dp_grade_for_district_record(district_record):
     # District data uses grade 0 for both TK and Kindergarten
-    if district_record['entrycode'] == 'TK':
-        return "-1"
-    else:
-        return district_record['Grade']
-
+    return "-1" if district_record['Grade'] == 'TK' or district_record['entrycode'] == 'TK' else district_record['Grade']
 
 def create_dp_studentrecord(district_record):
     """Create a DP studentrecord from the given district record"""
@@ -46,6 +42,13 @@ def create_dp_studentrecord(district_record):
     }
     return dp_studentrecord
 
+
+def create_informal_sal(main_f_name, spouse_f_name):
+    if len(spouse_f_name) != 0:
+        informal_sal = main_f_name + " and " + spouse_f_name
+    else:
+        informal_sal = main_f_name
+    return informal_sal
 
 def create_dp_donorrecord(district_record, school_year):
     """Create a DP donorrecord from the given district record (without creating any studentrecords)."""

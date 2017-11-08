@@ -13,7 +13,6 @@ FILENAME_NEWDONOR = '03-new-donors.csv'
 FILENAME_DONOR_UPDATES = '04-donor-updates.csv'
 FILENAME_DONOR_UPDATE_MESSAGES = '05-donor-manual-updates.txt'
 
-
 parser = argparse.ArgumentParser()
 parser.add_argument("--dp-report",
                     help="csv output from DP: Reports -> Report Center -> 271 Name Contacts Other -> Include \"NO MAIL\" Names -> run report -> export as .csv",
@@ -29,13 +28,10 @@ group.add_argument("--new-year-import", help="specify that this is a beginning-o
 group.add_argument("--mid-year-update", help="specify that this is a mid-year update", action="store_true")
 args = parser.parse_args()
 
-
 print("Input files:")
-
 
 # Load DP data
 dp = DPData(args.dp_report)
-
 
 # Load district data keyed off student number ("SystemID" there)
 district_records = {}
@@ -68,7 +64,7 @@ for dp_studentrecord in dp.get_students():
         dp_studentrecord['SCHOOL'] = 'NOBSD'
 
 
-# We have 3 different ways to match district records to 1 or more donors. For each student, we use the first successful strategy:
+# We have 2 different ways to match district records to 1 or more donors. For each student, we use the first successful strategy:
 # 1. Match based on SystemID (in district data) / STU_NUMBER (in dp data)
 # 2. Match based on the DP fields that it uses for matching
 
@@ -128,6 +124,10 @@ for stu_number, district_record in district_records.iteritems():
 
 
 # Compute donor-level updates
+informal_sal_headers = ['DONOR_ID','FIRST_NAME','LAST_NAME','SP_FNAME','SP_LNAME', 'SALUTATION','INFORMAL_SAL', '_CURR_INFORMAL_SAL', '_ACTION']
+dp_informal_sal_updates = list()
+dp_informal_sal_personalized = list()
+
 for stu_number, district_record in district_records.iteritems():
     dp_studentrecords = dp.get_students_for_stu_number(stu_number)
 
@@ -143,6 +143,37 @@ for stu_number, district_record in district_records.iteritems():
             'STATE': district_record['state'],
             'ZIP': district_record['zip']
         })
+
+        # Update for potential switch of parent name order
+
+        curr_informal_sal = dp_donorrecord['INFORMAL_SAL']
+        curr_main_f_name = dp_donorrecord['FIRST_NAME']
+        curr_spouse_f_name = dp_donorrecord['SP_FNAME']
+
+        dp_donorrecord_for_update = district_data_utils.create_dp_donorrecord(district_record=district_record, school_year=args.school_year)
+        dp_donorrecord.update({
+            'FIRST_NAME': dp_donorrecord_for_update['FIRST_NAME'],
+            'LAST_NAME': dp_donorrecord_for_update['LAST_NAME'],
+            'SP_FNAME': dp_donorrecord_for_update['SP_FNAME'],
+            'SP_LNAME': dp_donorrecord_for_update['SP_LNAME'],
+            'EMAIL': dp_donorrecord_for_update['EMAIL'],
+            'SPOUSE_EMAIL': dp_donorrecord_for_update['SPOUSE_EMAIL'],
+            'MOBILE_PHONE': dp_donorrecord_for_update['MOBILE_PHONE'],
+            'SPOUSE_MOBILE': dp_donorrecord_for_update['SPOUSE_MOBILE'],
+            'OPT_LINE': dp_donorrecord_for_update['OPT_LINE']
+        })
+
+        # For informal salutations, we update it only if it is a straightforward switch of the parent name order. 
+        # If the computed value is not a straightforward switch, it indicates that a manual update may have occured based on 
+        # personal knowledge of nicknames and such, so we leave it alone. 
+
+        potential_auto_informal_sal = district_data_utils.create_informal_sal(dp_donorrecord['SP_FNAME'], dp_donorrecord['FIRST_NAME'])
+        new_informal_sal = district_data_utils.create_informal_sal(dp_donorrecord['FIRST_NAME'], dp_donorrecord['SP_FNAME'])
+        if curr_informal_sal == potential_auto_informal_sal: # Informal salutation has not been personalized
+            dp_donorrecord.update({ 
+                'SALUTATION': dp_donorrecord_for_update['SALUTATION'],
+                'INFORMAL_SAL': new_informal_sal 
+            })
 
         # Update email based on parent1 email
         if district_record['Parent1Email'] and not dp_donorrecord['EMAIL']:
@@ -163,7 +194,6 @@ for stu_number, district_record in district_records.iteritems():
                     dp_donorrecord['EMAIL'] = district_record['Parent1Email']
                 elif district_record['Parent2Email'] and dp_donorrecord['FIRST_NAME'] == district_record['Parent 2 First Name']:
                     dp_donorrecord['EMAIL'] = district_record['Parent2Email']
-
 
 # Compute manual updates for (most likely) divorced donors
 # The goal is to detect if we have fresher data in the district data, then write out notes in a file to
@@ -220,7 +250,6 @@ dp.write_updated_donors_file(FILENAME_DONOR_UPDATES)
 
 # Output donor manual updates file
 utils.save_as_text_file(FILENAME_DONOR_UPDATE_MESSAGES, dp_messages_existingdonorrecords)
-
 
 # Print instructions on what to do with everything
 print('''
