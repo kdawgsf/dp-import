@@ -28,7 +28,8 @@ def district_school_to_dp_school(name):
 
 def dp_grade_for_district_record(district_record):
     # District data uses grade 0 for both TK and Kindergarten
-    return "-1" if district_record['Grade'] == 'TK' or district_record['entrycode'] == 'TK' else district_record['Grade']
+    return "-1" if district_record['Grade'] in ['TK','-2'] or district_record['Entrycode'] == 'TK' else district_record['Grade']
+
 
 def create_dp_studentrecord(district_record):
     """Create a DP studentrecord from the given district record"""
