@@ -35,9 +35,22 @@ dp = DPData(args.dp_report)
 
 # Load district data keyed off student number ("SystemID" there)
 district_records = {}
+status_counts = {}
+empty_parent_count = 0
 for row in utils.load_csv_file(args.district_data, district_data_utils.DISTRICT_DATA_HEADERS):
-    district_records[row['SystemID']] = row
+    enroll_status = row['Enroll_Status']
+    if enroll_status != 'Active':
+        status_counts[enroll_status] = 1 + status_counts.get(enroll_status, 0)
+    else:
+        if not (row['Parent 1 Last Name'] or row['Parent 2 Last Name']):
+            empty_parent_count += 1
+        else:
+            district_records[row['SystemID']] = row
 
+for (status, count) in status_counts.iteritems():
+    print("Ignored %d district records with Enroll_Status of '%s'" % (count, status))
+if empty_parent_count > 0:
+    print("Ignored %d district records with no parents" % (empty_parent_count))
 
 # For new-year imports, update grade for all students
 # For returning students, this will be overridden on the next step
