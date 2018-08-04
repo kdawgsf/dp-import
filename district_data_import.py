@@ -1,5 +1,5 @@
 from __future__ import print_function
-from collections import defaultdict
+from datetime import datetime
 import argparse
 
 from dpdata import DPData
@@ -73,8 +73,10 @@ for dp_studentrecord in dp.get_students():
             dp_studentrecord['SCHOOL'] = 'BIS'
     elif args.new_year_import and dp_studentrecord['GRADE'] == '9' and dp_studentrecord['SCHOOL'] == 'BIS':
         dp_studentrecord['SCHOOL'] = 'ALUM'
-    elif dp_studentrecord['SCHOOL'] != 'ALUM':
+        dp_studentrecord['YEARTO'] = str(datetime.now().year)
+    elif dp_studentrecord['SCHOOL'] not in ['ALUM','NOBSD']:
         dp_studentrecord['SCHOOL'] = 'NOBSD'
+        dp_studentrecord['YEARTO'] = str(datetime.now().year)
 
 
 # We have 2 different ways to match district records to 1 or more donors. For each student, we use the first successful strategy:
