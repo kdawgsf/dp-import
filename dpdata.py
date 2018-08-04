@@ -19,10 +19,10 @@ class DPData:
     __DONOR_MATCH_FIELDS = OrderedDict([('LAST_NAME', 10), ('FIRST_NAME', 8), ('ADDRESS', 8), ('ZIP', 5)])
 
     def __init__(self, dp_report_filename):
-        self.__donorrecords = dict()
-        self.__unmodified_donorrecords = dict()
-        self.__studentrecords = dict()
-        self.__unmodified_studentrecords = dict()
+        self.__donorrecords = OrderedDict()
+        self.__unmodified_donorrecords = OrderedDict()
+        self.__studentrecords = OrderedDict()
+        self.__unmodified_studentrecords = OrderedDict()
         self.__donor_id_to_other_ids = defaultdict(list)
         self.__stu_number_to_other_ids = defaultdict(list)
         self.__last_seq_values = dict()
