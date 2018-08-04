@@ -138,10 +138,10 @@ for stu_number, district_record in district_records.iteritems():
 
         # Update address
         dp_donorrecord.update({
-            'ADDRESS': district_record['street'],
-            'CITY': district_record['city'],
-            'STATE': district_record['state'],
-            'ZIP': district_record['zip']
+            'ADDRESS': district_record['Street'],
+            'CITY': district_record['City'],
+            'STATE': district_record['State'],
+            'ZIP': district_record['Zip']
         })
 
         # Update for potential switch of parent name order
@@ -180,7 +180,7 @@ for stu_number, district_record in district_records.iteritems():
             dp_donorrecord['EMAIL'] = district_record['Parent1Email']
 
         # Update email based on parent2 email
-        parent2_email_field = 'SPOUSE_EMAIL' if district_record['Parent1 Last Name'] else 'EMAIL'
+        parent2_email_field = 'SPOUSE_EMAIL' if district_record['Parent 1 Last Name'] else 'EMAIL'
         if district_record['Parent2Email'] and not dp_donorrecord[parent2_email_field]:
             dp_donorrecord[parent2_email_field] = district_record['Parent2Email']
     else:
@@ -205,7 +205,7 @@ for stu_number, district_record in district_records.iteritems():
     if len(dp_studentrecords) < 2:
         continue
 
-    district_address = '%s %s %s %s' % (district_record['street'], district_record['city'], district_record['state'], district_record['zip'])
+    district_address = '%s %s %s %s' % (district_record['Street'], district_record['City'], district_record['State'], district_record['Zip'])
 
     # Cases we are trying to detect:
     # 1. District address is not present on any of the donors

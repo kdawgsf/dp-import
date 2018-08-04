@@ -1,13 +1,13 @@
 import utils
 
-DISTRICT_DATA_HEADERS = ['School', 'SystemID', 'Student Last Name', 'Student First Name', 'street', 'city',
-                         'state', 'zip', 'Mailing_Street', 'Mailing_City', 'Mailing_State', 'Mailing_Zip',
-                         'home_phone', 'Parent1 Last Name', 'Parent 1 First Name', 'Parent 2 Last Name',
+DISTRICT_DATA_HEADERS = ['School', 'SystemID', 'Student Last Name', 'Student First Name', 'Street', 'City',
+                         'State', 'Zip', 'Mailing_Street', 'Mailing_City', 'Mailing_State', 'Mailing_Zip',
+                         'home_phone', 'Parent 1 Last Name', 'Parent 1 First Name', 'Parent 2 Last Name',
                          'Parent 2 First Name', 'Parent1DayPhone', 'Parent2DayPhone', 'Parent1Email',
                          'Parent2Email', 'guardian', 'guardianemail',
                          'Grade',
                          'Comment',
-                         'entrycode', 'entrydate', 'Enroll_Status', 'FamilyID', 'exitdate']
+                         'Entrycode', 'entrydate', 'Enroll_Status', 'FamilyID', 'exitdate']
 # 'GuardianDayPhone'
 
 # Mapping of district school name to dp school code
@@ -50,11 +50,12 @@ def create_informal_sal(main_f_name, spouse_f_name):
         informal_sal = main_f_name
     return informal_sal
 
+
 def create_dp_donorrecord(district_record, school_year):
     """Create a DP donorrecord from the given district record (without creating any studentrecords)."""
     if not school_year:
         raise ValueError("school_year param required")
-    main_l_name = district_record['Parent1 Last Name']
+    main_l_name = district_record['Parent 1 Last Name']
     if len(main_l_name) != 0:
         main_f_name = district_record['Parent 1 First Name']
         spouse_f_name = district_record['Parent 2 First Name']
@@ -87,10 +88,10 @@ def create_dp_donorrecord(district_record, school_year):
         'SALUTATION': salutation,
         'INFORMAL_SAL': informal_sal,
         'OPT_LINE': spouse_f_name + " " + spouse_l_name,
-        'ADDRESS': district_record['street'],
-        'CITY': district_record['city'],
-        'STATE': district_record['state'],
-        'ZIP': district_record['zip'],
+        'ADDRESS': district_record['Street'],
+        'CITY': district_record['City'],
+        'STATE': district_record['State'],
+        'ZIP': district_record['Zip'],
         'ADDRESS_TYPE': 'HOME',
         'EMAIL': main_email,
         'SPOUSE_EMAIL': spouse_email,
