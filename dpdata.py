@@ -7,7 +7,8 @@ DP_REPORT_271_DONOR_HEADERS = ['DONOR_ID','FIRST_NAME','LAST_NAME','SP_FNAME','S
                                'ADDRESS','CITY','STATE','ZIP','EMAIL','SPOUSE_EMAIL',
                                'HOME_PHONE','MOBILE_PHONE','SPOUSE_MOBILE','DONOR_TYPE',
                                'NOMAIL','NOMAIL_REASON','GUARDIAN','GUARD_EMAIL',
-                               'FY_JOIN_BSD','RECEIPT_DELIVERY']
+                               'FY_JOIN_BSD','RECEIPT_DELIVERY','EMPLOYER','SP_EMPLOYER',
+                               'ADVISORY_MEMBER_MULTICODE','SP_ADVISOR_MEMBER_MULTICODE']
 
 DP_REPORT_271_STUDENT_HEADERS = ['DONOR_ID','STU_NUMBER','STU_FNAME','STU_LNAME','GRADE','SCHOOL','OTHER_ID','OTHER_DATE','YEARTO']
 
@@ -190,7 +191,7 @@ class DPData:
 
     def write_new_students_for_new_donors_file(self, csv_filename):
         data = list()
-        headers = utils.list_with_mods(DP_REPORT_271_HEADERS, remove=['DONOR_ID', 'OTHER_ID'])
+        headers = utils.list_with_mods(DP_REPORT_271_HEADERS, remove=['DONOR_ID', 'OTHER_ID', 'ADVISORY_MEMBER_MULTICODE', 'SP_ADVISOR_MEMBER_MULTICODE'])
         for other_id, studentrecord in self.__studentrecords.iteritems():
             if int(other_id) < 0 and int(studentrecord['DONOR_ID']) < 0:
                 # Combine donor and student fields into a single row
@@ -201,7 +202,7 @@ class DPData:
 
     def write_updated_donors_file(self, csv_filename):
         data = []
-        headers = utils.list_with_mods(DP_REPORT_271_DONOR_HEADERS, add=['_MODIFIED_FIELDS'])
+        headers = utils.list_with_mods(DP_REPORT_271_DONOR_HEADERS, add=['_MODIFIED_FIELDS'], remove=['ADVISORY_MEMBER_MULTICODE', 'SP_ADVISOR_MEMBER_MULTICODE'])
         for donor_id, donorrecord in self.__donorrecords.iteritems():
             if int(donor_id) >= 0 and donorrecord != self.__unmodified_donorrecords[donor_id]:
                 row = utils.dict_filtered_copy(donorrecord, headers)

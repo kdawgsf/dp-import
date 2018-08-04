@@ -44,6 +44,17 @@ def create_dp_studentrecord(district_record):
     return dp_studentrecord
 
 
+def create_salutation(main_f_name, main_l_name, spouse_f_name, spouse_l_name):
+    if len(spouse_l_name) != 0:
+        if spouse_l_name == main_l_name:
+            salutation = main_f_name + " and " + spouse_f_name + " " + spouse_l_name
+        else:
+            salutation = main_f_name + " " + main_l_name + " and " + spouse_f_name + " " + spouse_l_name
+    else:
+        salutation = main_f_name + " " + main_l_name
+    return salutation
+
+
 def create_informal_sal(main_f_name, spouse_f_name):
     if len(spouse_f_name) != 0:
         informal_sal = main_f_name + " and " + spouse_f_name
@@ -71,15 +82,8 @@ def create_dp_donorrecord(district_record, school_year):
         main_email = district_record['Parent2Email']
         spouse_email = ""
 
-    if len(spouse_l_name) != 0:
-        if spouse_l_name == main_l_name:
-            salutation = main_f_name + " and " + spouse_f_name + " " + spouse_l_name
-        else:
-            salutation = main_f_name + " " + main_l_name + " and " + spouse_f_name + " " + spouse_l_name
-        informal_sal = main_f_name + " and " + spouse_f_name
-    else:
-        salutation = main_f_name + " " + main_l_name
-        informal_sal = main_f_name
+    salutation = create_salutation(main_f_name, main_l_name, spouse_f_name, spouse_l_name)
+    informal_sal = create_informal_sal(main_f_name, spouse_f_name)
 
     dp_donorrecord = {
         'FIRST_NAME': main_f_name,
@@ -108,3 +112,20 @@ def create_dp_donorrecord(district_record, school_year):
         'NOMAIL_REASON': ''
     }
     return dp_donorrecord
+
+
+# See https://stackoverflow.com/questions/2460177/edit-distance-in-python#32558749
+def levenshteinDistance(s1, s2):
+    if len(s1) > len(s2):
+        s1, s2 = s2, s1
+
+    distances = range(len(s1) + 1)
+    for i2, c2 in enumerate(s2):
+        distances_ = [i2+1]
+        for i1, c1 in enumerate(s1):
+            if c1 == c2:
+                distances_.append(distances[i1])
+            else:
+                distances_.append(1 + min((distances[i1], distances[i1 + 1], distances_[-1])))
+        distances = distances_
+    return distances[-1]
