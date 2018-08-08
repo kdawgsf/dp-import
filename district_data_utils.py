@@ -1,13 +1,13 @@
 import utils
 
-DISTRICT_DATA_HEADERS = ['School', 'SystemID', 'Student Last Name', 'Student First Name', 'street', 'city',
-                         'state', 'zip', 'Mailing_Street', 'Mailing_City', 'Mailing_State', 'Mailing_Zip',
-                         'home_phone', 'Parent1 Last Name', 'Parent 1 First Name', 'Parent 2 Last Name',
+DISTRICT_DATA_HEADERS = ['School', 'SystemID', 'Student Last Name', 'Student First Name', 'Street', 'City',
+                         'State', 'Zip', 'Mailing_Street', 'Mailing_City', 'Mailing_State', 'Mailing_Zip',
+                         'home_phone', 'Parent 1 Last Name', 'Parent 1 First Name', 'Parent 2 Last Name',
                          'Parent 2 First Name', 'Parent1DayPhone', 'Parent2DayPhone', 'Parent1Email',
                          'Parent2Email', 'guardian', 'guardianemail',
                          'Grade',
                          'Comment',
-                         'entrycode', 'entrydate', 'Enroll_Status', 'FamilyID', 'exitdate']
+                         'Entrycode', 'entrydate', 'Enroll_Status', 'FamilyID', 'exitdate']
 # 'GuardianDayPhone'
 
 # Mapping of district school name to dp school code
@@ -28,7 +28,8 @@ def district_school_to_dp_school(name):
 
 def dp_grade_for_district_record(district_record):
     # District data uses grade 0 for both TK and Kindergarten
-    return "-1" if district_record['Grade'] == 'TK' or district_record['entrycode'] == 'TK' else district_record['Grade']
+    return "-1" if district_record['Grade'] in ['TK','-2'] or district_record['Entrycode'] == 'TK' else district_record['Grade']
+
 
 def create_dp_studentrecord(district_record):
     """Create a DP studentrecord from the given district record"""
@@ -43,6 +44,17 @@ def create_dp_studentrecord(district_record):
     return dp_studentrecord
 
 
+def create_salutation(main_f_name, main_l_name, spouse_f_name, spouse_l_name):
+    if len(spouse_l_name) != 0:
+        if spouse_l_name == main_l_name:
+            salutation = main_f_name + " and " + spouse_f_name + " " + spouse_l_name
+        else:
+            salutation = main_f_name + " " + main_l_name + " and " + spouse_f_name + " " + spouse_l_name
+    else:
+        salutation = main_f_name + " " + main_l_name
+    return salutation
+
+
 def create_informal_sal(main_f_name, spouse_f_name):
     if len(spouse_f_name) != 0:
         informal_sal = main_f_name + " and " + spouse_f_name
@@ -50,11 +62,12 @@ def create_informal_sal(main_f_name, spouse_f_name):
         informal_sal = main_f_name
     return informal_sal
 
+
 def create_dp_donorrecord(district_record, school_year):
     """Create a DP donorrecord from the given district record (without creating any studentrecords)."""
     if not school_year:
         raise ValueError("school_year param required")
-    main_l_name = district_record['Parent1 Last Name']
+    main_l_name = district_record['Parent 1 Last Name']
     if len(main_l_name) != 0:
         main_f_name = district_record['Parent 1 First Name']
         spouse_f_name = district_record['Parent 2 First Name']
@@ -69,15 +82,8 @@ def create_dp_donorrecord(district_record, school_year):
         main_email = district_record['Parent2Email']
         spouse_email = ""
 
-    if len(spouse_l_name) != 0:
-        if spouse_l_name == main_l_name:
-            salutation = main_f_name + " and " + spouse_f_name + " " + spouse_l_name
-        else:
-            salutation = main_f_name + " " + main_l_name + " and " + spouse_f_name + " " + spouse_l_name
-        informal_sal = main_f_name + " and " + spouse_f_name
-    else:
-        salutation = main_f_name + " " + main_l_name
-        informal_sal = main_f_name
+    salutation = create_salutation(main_f_name, main_l_name, spouse_f_name, spouse_l_name)
+    informal_sal = create_informal_sal(main_f_name, spouse_f_name)
 
     dp_donorrecord = {
         'FIRST_NAME': main_f_name,
@@ -87,10 +93,10 @@ def create_dp_donorrecord(district_record, school_year):
         'SALUTATION': salutation,
         'INFORMAL_SAL': informal_sal,
         'OPT_LINE': spouse_f_name + " " + spouse_l_name,
-        'ADDRESS': district_record['street'],
-        'CITY': district_record['city'],
-        'STATE': district_record['state'],
-        'ZIP': district_record['zip'],
+        'ADDRESS': district_record['Street'],
+        'CITY': district_record['City'],
+        'STATE': district_record['State'],
+        'ZIP': district_record['Zip'],
         'ADDRESS_TYPE': 'HOME',
         'EMAIL': main_email,
         'SPOUSE_EMAIL': spouse_email,
@@ -106,3 +112,20 @@ def create_dp_donorrecord(district_record, school_year):
         'NOMAIL_REASON': ''
     }
     return dp_donorrecord
+
+
+# See https://stackoverflow.com/questions/2460177/edit-distance-in-python#32558749
+def levenshteinDistance(s1, s2):
+    if len(s1) > len(s2):
+        s1, s2 = s2, s1
+
+    distances = range(len(s1) + 1)
+    for i2, c2 in enumerate(s2):
+        distances_ = [i2+1]
+        for i1, c1 in enumerate(s1):
+            if c1 == c2:
+                distances_.append(distances[i1])
+            else:
+                distances_.append(1 + min((distances[i1], distances[i1 + 1], distances_[-1])))
+        distances = distances_
+    return distances[-1]

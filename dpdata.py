@@ -7,9 +7,10 @@ DP_REPORT_271_DONOR_HEADERS = ['DONOR_ID','FIRST_NAME','LAST_NAME','SP_FNAME','S
                                'ADDRESS','CITY','STATE','ZIP','EMAIL','SPOUSE_EMAIL',
                                'HOME_PHONE','MOBILE_PHONE','SPOUSE_MOBILE','DONOR_TYPE',
                                'NOMAIL','NOMAIL_REASON','GUARDIAN','GUARD_EMAIL',
-                               'FY_JOIN_BSD','RECEIPT_DELIVERY']
+                               'FY_JOIN_BSD','RECEIPT_DELIVERY','EMPLOYER','SP_EMPLOYER',
+                               'ADVISORY_MEMBER_MULTICODE','SP_ADVISOR_MEMBER_MULTICODE']
 
-DP_REPORT_271_STUDENT_HEADERS = ['DONOR_ID','STU_NUMBER','STU_FNAME','STU_LNAME','GRADE','SCHOOL','OTHER_ID','OTHER_DATE']
+DP_REPORT_271_STUDENT_HEADERS = ['DONOR_ID','STU_NUMBER','STU_FNAME','STU_LNAME','GRADE','SCHOOL','OTHER_ID','OTHER_DATE','YEARTO']
 
 DP_REPORT_271_HEADERS = list(set(DP_REPORT_271_DONOR_HEADERS + DP_REPORT_271_STUDENT_HEADERS))
 
@@ -19,10 +20,10 @@ class DPData:
     __DONOR_MATCH_FIELDS = OrderedDict([('LAST_NAME', 10), ('FIRST_NAME', 8), ('ADDRESS', 8), ('ZIP', 5)])
 
     def __init__(self, dp_report_filename):
-        self.__donorrecords = dict()
-        self.__unmodified_donorrecords = dict()
-        self.__studentrecords = dict()
-        self.__unmodified_studentrecords = dict()
+        self.__donorrecords = OrderedDict()
+        self.__unmodified_donorrecords = OrderedDict()
+        self.__studentrecords = OrderedDict()
+        self.__unmodified_studentrecords = OrderedDict()
         self.__donor_id_to_other_ids = defaultdict(list)
         self.__stu_number_to_other_ids = defaultdict(list)
         self.__last_seq_values = dict()
@@ -190,7 +191,7 @@ class DPData:
 
     def write_new_students_for_new_donors_file(self, csv_filename):
         data = list()
-        headers = utils.list_with_mods(DP_REPORT_271_HEADERS, remove=['DONOR_ID', 'OTHER_ID'])
+        headers = utils.list_with_mods(DP_REPORT_271_HEADERS, remove=['DONOR_ID', 'OTHER_ID', 'ADVISORY_MEMBER_MULTICODE', 'SP_ADVISOR_MEMBER_MULTICODE'])
         for other_id, studentrecord in self.__studentrecords.iteritems():
             if int(other_id) < 0 and int(studentrecord['DONOR_ID']) < 0:
                 # Combine donor and student fields into a single row
@@ -201,7 +202,7 @@ class DPData:
 
     def write_updated_donors_file(self, csv_filename):
         data = []
-        headers = utils.list_with_mods(DP_REPORT_271_DONOR_HEADERS, add=['_MODIFIED_FIELDS'])
+        headers = utils.list_with_mods(DP_REPORT_271_DONOR_HEADERS, add=['_MODIFIED_FIELDS'], remove=['ADVISORY_MEMBER_MULTICODE', 'SP_ADVISOR_MEMBER_MULTICODE'])
         for donor_id, donorrecord in self.__donorrecords.iteritems():
             if int(donor_id) >= 0 and donorrecord != self.__unmodified_donorrecords[donor_id]:
                 row = utils.dict_filtered_copy(donorrecord, headers)

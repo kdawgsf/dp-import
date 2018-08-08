@@ -1,5 +1,5 @@
 from __future__ import print_function
-from collections import defaultdict
+from datetime import datetime
 import argparse
 
 from dpdata import DPData
@@ -35,9 +35,22 @@ dp = DPData(args.dp_report)
 
 # Load district data keyed off student number ("SystemID" there)
 district_records = {}
+status_counts = {}
+empty_parent_count = 0
 for row in utils.load_csv_file(args.district_data, district_data_utils.DISTRICT_DATA_HEADERS):
-    district_records[row['SystemID']] = row
+    enroll_status = row['Enroll_Status']
+    if enroll_status != 'Active':
+        status_counts[enroll_status] = 1 + status_counts.get(enroll_status, 0)
+    else:
+        if not (row['Parent 1 Last Name'] or row['Parent 2 Last Name']):
+            empty_parent_count += 1
+        else:
+            district_records[row['SystemID']] = row
 
+for (status, count) in status_counts.iteritems():
+    print("Ignored %d district records with Enroll_Status of '%s'" % (count, status))
+if empty_parent_count > 0:
+    print("Ignored %d district records with no parents" % (empty_parent_count))
 
 # For new-year imports, update grade for all students
 # For returning students, this will be overridden on the next step
@@ -60,8 +73,10 @@ for dp_studentrecord in dp.get_students():
             dp_studentrecord['SCHOOL'] = 'BIS'
     elif args.new_year_import and dp_studentrecord['GRADE'] == '9' and dp_studentrecord['SCHOOL'] == 'BIS':
         dp_studentrecord['SCHOOL'] = 'ALUM'
-    elif dp_studentrecord['SCHOOL'] != 'ALUM':
+        dp_studentrecord['YEARTO'] = str(datetime.now().year)
+    elif dp_studentrecord['SCHOOL'] not in ['ALUM','NOBSD']:
         dp_studentrecord['SCHOOL'] = 'NOBSD'
+        dp_studentrecord['YEARTO'] = str(datetime.now().year)
 
 
 # We have 2 different ways to match district records to 1 or more donors. For each student, we use the first successful strategy:
@@ -124,9 +139,6 @@ for stu_number, district_record in district_records.iteritems():
 
 
 # Compute donor-level updates
-informal_sal_headers = ['DONOR_ID','FIRST_NAME','LAST_NAME','SP_FNAME','SP_LNAME', 'SALUTATION','INFORMAL_SAL', '_CURR_INFORMAL_SAL', '_ACTION']
-dp_informal_sal_updates = list()
-dp_informal_sal_personalized = list()
 
 for stu_number, district_record in district_records.iteritems():
     dp_studentrecords = dp.get_students_for_stu_number(stu_number)
@@ -138,19 +150,24 @@ for stu_number, district_record in district_records.iteritems():
 
         # Update address
         dp_donorrecord.update({
-            'ADDRESS': district_record['street'],
-            'CITY': district_record['city'],
-            'STATE': district_record['state'],
-            'ZIP': district_record['zip']
+            'ADDRESS': district_record['Street'],
+            'CITY': district_record['City'],
+            'STATE': district_record['State'],
+            'ZIP': district_record['Zip']
         })
 
-        # Update for potential switch of parent name order
-
-        curr_informal_sal = dp_donorrecord['INFORMAL_SAL']
-        curr_main_f_name = dp_donorrecord['FIRST_NAME']
-        curr_spouse_f_name = dp_donorrecord['SP_FNAME']
-
         dp_donorrecord_for_update = district_data_utils.create_dp_donorrecord(district_record=district_record, school_year=args.school_year)
+
+        # Figure out if we are changing the parent order by importing the district data
+        parent_order_changed = False
+        old_informal_sal_upper = district_data_utils.create_informal_sal(dp_donorrecord['FIRST_NAME'], dp_donorrecord['SP_FNAME']).upper()
+        new_informal_sal_upper = district_data_utils.create_informal_sal(dp_donorrecord_for_update['FIRST_NAME'], dp_donorrecord_for_update['SP_FNAME']).upper()
+        if old_informal_sal_upper != new_informal_sal_upper and len(dp_donorrecord_for_update['SP_LNAME']) > 0:
+            # Something changed, so use edit distance to see if this looks like a parent order swap
+            old_informal_sal_reversed_upper = district_data_utils.create_informal_sal(dp_donorrecord['SP_FNAME'], dp_donorrecord['FIRST_NAME']).upper()
+            parent_order_changed = district_data_utils.levenshteinDistance(old_informal_sal_reversed_upper, new_informal_sal_upper) < district_data_utils.levenshteinDistance(old_informal_sal_upper, new_informal_sal_upper)
+
+        # Update for potential switch of parent name order
         dp_donorrecord.update({
             'FIRST_NAME': dp_donorrecord_for_update['FIRST_NAME'],
             'LAST_NAME': dp_donorrecord_for_update['LAST_NAME'],
@@ -163,16 +180,25 @@ for stu_number, district_record in district_records.iteritems():
             'OPT_LINE': dp_donorrecord_for_update['OPT_LINE']
         })
 
-        # For informal salutations, we update it only if it is a straightforward switch of the parent name order. 
+        # If parent order changed, then swap employer and advisory member for donor and spouse
+        if parent_order_changed:
+            dp_donorrecord.update({
+                'EMPLOYER': dp_donorrecord['SP_EMPLOYER'],
+                'SP_EMPLOYER': dp_donorrecord['EMPLOYER'],
+                'ADVISORY_MEMBER_MULTICODE': dp_donorrecord['SP_ADVISOR_MEMBER_MULTICODE'],
+                'SP_ADVISOR_MEMBER_MULTICODE': dp_donorrecord['ADVISORY_MEMBER_MULTICODE']
+            })
+
+        # For informal salutations, we update it only if it is a straightforward switch of the parent name order.
         # If the computed value is not a straightforward switch, it indicates that a manual update may have occured based on 
         # personal knowledge of nicknames and such, so we leave it alone. 
 
-        potential_auto_informal_sal = district_data_utils.create_informal_sal(dp_donorrecord['SP_FNAME'], dp_donorrecord['FIRST_NAME'])
-        new_informal_sal = district_data_utils.create_informal_sal(dp_donorrecord['FIRST_NAME'], dp_donorrecord['SP_FNAME'])
-        if curr_informal_sal == potential_auto_informal_sal: # Informal salutation has not been personalized
+        curr_informal_sal = dp_donorrecord['INFORMAL_SAL']
+        reversed_auto_informal_sal = district_data_utils.create_informal_sal(dp_donorrecord['SP_FNAME'], dp_donorrecord['FIRST_NAME'])
+        if curr_informal_sal == reversed_auto_informal_sal: # Informal salutation has not been personalized
             dp_donorrecord.update({ 
                 'SALUTATION': dp_donorrecord_for_update['SALUTATION'],
-                'INFORMAL_SAL': new_informal_sal 
+                'INFORMAL_SAL': dp_donorrecord_for_update['INFORMAL_SAL']
             })
 
         # Update email based on parent1 email
@@ -180,7 +206,7 @@ for stu_number, district_record in district_records.iteritems():
             dp_donorrecord['EMAIL'] = district_record['Parent1Email']
 
         # Update email based on parent2 email
-        parent2_email_field = 'SPOUSE_EMAIL' if district_record['Parent1 Last Name'] else 'EMAIL'
+        parent2_email_field = 'SPOUSE_EMAIL' if district_record['Parent 1 Last Name'] else 'EMAIL'
         if district_record['Parent2Email'] and not dp_donorrecord[parent2_email_field]:
             dp_donorrecord[parent2_email_field] = district_record['Parent2Email']
     else:
@@ -205,7 +231,7 @@ for stu_number, district_record in district_records.iteritems():
     if len(dp_studentrecords) < 2:
         continue
 
-    district_address = '%s %s %s %s' % (district_record['street'], district_record['city'], district_record['state'], district_record['zip'])
+    district_address = '%s %s %s %s' % (district_record['Street'], district_record['City'], district_record['State'], district_record['Zip'])
 
     # Cases we are trying to detect:
     # 1. District address is not present on any of the donors
