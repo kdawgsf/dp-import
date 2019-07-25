@@ -39,13 +39,13 @@ status_counts = {}
 empty_parent_count = 0
 for row in utils.load_csv_file(args.district_data, district_data_utils.DISTRICT_DATA_HEADERS):
     enroll_status = row['Enroll_Status']
-    if enroll_status != 'Active':
-        status_counts[enroll_status] = 1 + status_counts.get(enroll_status, 0)
+    #if enroll_status != 'Active':
+    #    status_counts[enroll_status] = 1 + status_counts.get(enroll_status, 0)
+    #else:
+    if not (row['Parent 1 Last Name'] or row['Parent 2 Last Name']):
+        empty_parent_count += 1
     else:
-        if not (row['Parent 1 Last Name'] or row['Parent 2 Last Name']):
-            empty_parent_count += 1
-        else:
-            district_records[row['SystemID']] = row
+        district_records[row['SystemID']] = row
 
 for (status, count) in status_counts.iteritems():
     print("Ignored %d district records with Enroll_Status of '%s'" % (count, status))
@@ -129,13 +129,13 @@ for stu_number, district_record in district_records.iteritems():
 
 # Update GUARD_EMAIL on existing donors
 # Requirement is to update this for all donors for a student (if changed)
-for stu_number, district_record in district_records.iteritems():
-    guard_email = district_record['guardianemail']
-    if guard_email:
-        for dp_studentrecord in dp.get_students_for_stu_number(stu_number):
-            dp_donorrecord = dp.get_donor(dp_studentrecord['DONOR_ID'])
-            if utils.normalize_email(dp_donorrecord['GUARD_EMAIL']) != utils.normalize_email(guard_email):
-                dp_donorrecord['GUARD_EMAIL'] = guard_email
+#for stu_number, district_record in district_records.iteritems():
+#    guard_email = district_record['guardianemail']
+#    if guard_email:
+#        for dp_studentrecord in dp.get_students_for_stu_number(stu_number):
+#            dp_donorrecord = dp.get_donor(dp_studentrecord['DONOR_ID'])
+#            if utils.normalize_email(dp_donorrecord['GUARD_EMAIL']) != utils.normalize_email(guard_email):
+#                dp_donorrecord['GUARD_EMAIL'] = guard_email
 
 
 # Compute donor-level updates
