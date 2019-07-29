@@ -38,7 +38,7 @@ district_records = {}
 status_counts = {}
 empty_parent_count = 0
 for row in utils.load_csv_file(args.district_data, district_data_utils.DISTRICT_DATA_HEADERS):
-    enroll_status = row['Enroll_Status']
+    #enroll_status = row['Enroll_Status']
     #if enroll_status != 'Active':
     #    status_counts[enroll_status] = 1 + status_counts.get(enroll_status, 0)
     #else:
@@ -67,7 +67,7 @@ for dp_studentrecord in dp.get_students():
     if stu_number in district_records:
         # Returning student
         dp_studentrecord['GRADE'] = district_data_utils.dp_grade_for_district_record(district_records[stu_number])
-        dp_studentrecord['SCHOOL'] = district_data_utils.district_school_to_dp_school(district_records[stu_number]['School'])
+        dp_studentrecord['SCHOOL'] = district_data_utils.district_school_to_dp_school(district_records[stu_number]['Current School (19-20)'])
         # District data has 6th graders at the elementary schools, so manually update these
         if dp_studentrecord['GRADE'] == '6':
             dp_studentrecord['SCHOOL'] = 'BIS'

@@ -1,24 +1,24 @@
 import utils
 
-DISTRICT_DATA_HEADERS = ['School', 'SystemID', 'Student Last Name', 'Student First Name', 'Street', 'City',
+DISTRICT_DATA_HEADERS = ['Current School (19-20)', 'SystemID', 'Student Last Name', 'Student First Name', 'Street', 'City',
                          'State', 'Zip', 'Mailing_Street', 'Mailing_City', 'Mailing_State', 'Mailing_Zip',
                          'home_phone', 'Parent 1 Last Name', 'Parent 1 First Name', 'Parent 2 Last Name',
                          'Parent 2 First Name', 'Parent1DayPhone', 'Parent2DayPhone', 'Parent1Email',
                          'Parent2Email', #'guardian', 'guardianemail',
                          'Grade',
                          'Comment',
-                         'Entrycode', 'entrydate', 'Enroll_Status', 'FamilyID', 'exitdate']
+                         'FamilyID', 'Previous School (18-19)', 'Sibling', 'EntryStatus'] # , 'Enroll_Status', 'exitdate', 'entrydate' 'Entrycode',
 # 'GuardianDayPhone'
 
 # Mapping of district school name to dp school code
 DISTRICT_SCHOOL_MAPPING = {
-    'Burlingame Intermediate School': 'BIS',
-    'Franklin Elementary School': 'FRANKLIN',
-    'Hoover Elementary School': 'HOOVER',
-    'Lincoln Elementary School': 'LINCOLN',
-    'McKinley Elementary School': 'MCKINLEY',
-    'Roosevelt Elementary School': 'ROOSEVELT',
-    'Washington Elementary School': 'WASHINGTON',
+    'BIS': 'BIS',
+    'FES': 'FRANKLIN',
+    'HES': 'HOOVER',
+    'LES': 'LINCOLN',
+    'MES': 'MCKINLEY',
+    'RES': 'ROOSEVELT',
+    'WES': 'WASHINGTON',
 }
 
 
@@ -27,8 +27,12 @@ def district_school_to_dp_school(name):
 
 
 def dp_grade_for_district_record(district_record):
-    # District data uses grade 0 for both TK and Kindergarten
-    return "-1" if district_record['Grade'] in ['TK','-2'] or district_record['Entrycode'] == 'TK' else district_record['Grade']
+    if district_record['Grade'] in ['TK', '-2']:
+        return '-1'
+    elif district_record['Grade'] == 'K':
+        return '0'
+    else:
+        return district_record['Grade']
 
 
 def create_dp_studentrecord(district_record):
@@ -37,7 +41,7 @@ def create_dp_studentrecord(district_record):
         'STU_LNAME': district_record['Student Last Name'],
         'STU_FNAME': district_record['Student First Name'],
         'STU_NUMBER': district_record['SystemID'],
-        'SCHOOL': district_school_to_dp_school(district_record['School']),
+        'SCHOOL': district_school_to_dp_school(district_record['Current School (19-20)']),
         'GRADE': dp_grade_for_district_record(district_record),
         'OTHER_DATE': utils.TODAY_STR
     }

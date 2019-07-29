@@ -93,6 +93,7 @@ ENV/
 *.xls
 *.xlsx
 *.txt
+*.zip
 
 # PyCharm
 .idea
