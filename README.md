@@ -1,4 +1,4 @@
-## Prepping for the import
+### Prepping for the import
 
 First, make sure you have python 2.7.
 
@@ -25,7 +25,7 @@ Now we need to create an export of donors and students from DP:
 
 1. Log in to DP
 2. Navigate to Reports -> Report Center
-3. Under Easy Reports, click on "271 Name Contacts Other"
+3. Click on "271 Name Contacts Other"
 4. On the left-hand sidebar, ensure the Include "NO MAIL" Names checkbox is checked
 5. Hover over the arrow to the right of the "run report" button and click on "export as .csv"
 6. Click OK to run the report without a filter
@@ -36,6 +36,8 @@ The last time I ran the report, it produced a csv file in utf-8 encoding, which 
 1. Open the file in Excel
 2. Change the header in column A1 to "GRADE" (without the quotes) to remove any special formatting. (This was tested in Excel for Mac 2011.)
 3. Save the file. That's it!
+
+> Note: As of July 2020, this step did not need to be performed.
 
 ## Running the script
 
