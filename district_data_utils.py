@@ -117,7 +117,9 @@ def create_dp_donorrecord(district_record, school_year):
         'FY_JOIN_BSD': school_year,
         'RECEIPT_DELIVERY': 'E',
         'NOMAIL': 'N',
-        'NOMAIL_REASON': ''
+        'NOMAIL_REASON': '',
+        'MAILMERGE_FNAME': main_f_name if main_email else 'no email',
+        'SP_MAILMERGE_FNAME': spouse_f_name if spouse_email and spouse_email != main_email else 'no email'
     }
     return dp_donorrecord
 

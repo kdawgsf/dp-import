@@ -185,13 +185,15 @@ for stu_number, district_record in district_records.iteritems():
             'OPT_LINE': dp_donorrecord_for_update['OPT_LINE']
         })
 
-        # If parent order changed, then swap employer and advisory member for donor and spouse
+        # If parent order changed, then swap employer, advisory member, and mailmerge first name for donor and spouse
         if parent_order_changed:
             dp_donorrecord.update({
-                'EMPLOYER': dp_donorrecord['SP_EMPLOYER'],
-                'SP_EMPLOYER': dp_donorrecord['EMPLOYER'],
+                'DONOR_EMPLOYER': dp_donorrecord['SP_EMPLOYER'],
+                'SP_EMPLOYER': dp_donorrecord['DONOR_EMPLOYER'],
                 'ADVISORY_MEMBER_MULTICODE': dp_donorrecord['SP_ADVISOR_MEMBER_MULTICODE'],
-                'SP_ADVISOR_MEMBER_MULTICODE': dp_donorrecord['ADVISORY_MEMBER_MULTICODE']
+                'SP_ADVISOR_MEMBER_MULTICODE': dp_donorrecord['ADVISORY_MEMBER_MULTICODE'],
+                'MAILMERGE_FNAME': dp_donorrecord['SP_MAILMERGE_FNAME'],
+                'SP_MAILMERGE_FNAME': dp_donorrecord['MAILMERGE_FNAME']
             })
 
         # For informal salutations, we update it only if it is a straightforward switch of the parent name order.
