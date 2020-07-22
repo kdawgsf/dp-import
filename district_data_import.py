@@ -172,20 +172,18 @@ for stu_number, district_record in district_records.iteritems():
             old_informal_sal_reversed_upper = district_data_utils.create_informal_sal(dp_donorrecord['SP_FNAME'], dp_donorrecord['FIRST_NAME']).upper()
             parent_order_changed = district_data_utils.levenshteinDistance(old_informal_sal_reversed_upper, new_informal_sal_upper) < district_data_utils.levenshteinDistance(old_informal_sal_upper, new_informal_sal_upper)
 
-        # Update for potential switch of parent name order
+        # Update for potential switch of parent name order (email handled below)
         dp_donorrecord.update({
             'FIRST_NAME': dp_donorrecord_for_update['FIRST_NAME'],
             'LAST_NAME': dp_donorrecord_for_update['LAST_NAME'],
             'SP_FNAME': dp_donorrecord_for_update['SP_FNAME'],
             'SP_LNAME': dp_donorrecord_for_update['SP_LNAME'],
-            'EMAIL': dp_donorrecord_for_update['EMAIL'],
-            'SPOUSE_EMAIL': dp_donorrecord_for_update['SPOUSE_EMAIL'],
             'MOBILE_PHONE': dp_donorrecord_for_update['MOBILE_PHONE'],
             'SPOUSE_MOBILE': dp_donorrecord_for_update['SPOUSE_MOBILE'],
             'OPT_LINE': dp_donorrecord_for_update['OPT_LINE']
         })
 
-        # If parent order changed, then swap employer, advisory member, and mailmerge first name for donor and spouse
+        # If parent order changed, then swap employer, advisory member, and mailmerge first name, and email
         if parent_order_changed:
             dp_donorrecord.update({
                 'DONOR_EMPLOYER': dp_donorrecord['SP_EMPLOYER'],
@@ -193,8 +191,16 @@ for stu_number, district_record in district_records.iteritems():
                 'ADVISORY_MEMBER_MULTICODE': dp_donorrecord['SP_ADVISOR_MEMBER_MULTICODE'],
                 'SP_ADVISOR_MEMBER_MULTICODE': dp_donorrecord['ADVISORY_MEMBER_MULTICODE'],
                 'MAILMERGE_FNAME': dp_donorrecord['SP_MAILMERGE_FNAME'],
-                'SP_MAILMERGE_FNAME': dp_donorrecord['MAILMERGE_FNAME']
+                'SP_MAILMERGE_FNAME': dp_donorrecord['MAILMERGE_FNAME'],
+                'EMAIL': dp_donorrecord['SPOUSE_EMAIL'],
+                'SPOUSE_EMAIL': dp_donorrecord['EMAIL']
             })
+
+        # Only overwrite email if provided by district
+        if dp_donorrecord_for_update['EMAIL']:
+            dp_donorrecord['EMAIL'] = dp_donorrecord_for_update['EMAIL']
+        if dp_donorrecord_for_update['SPOUSE_EMAIL']:
+            dp_donorrecord['SPOUSE_EMAIL'] = dp_donorrecord_for_update['SPOUSE_EMAIL']
 
         # For informal salutations, we update it only if it is a straightforward switch of the parent name order.
         # If the computed value is not a straightforward switch, it indicates that a manual update may have occured based on 
