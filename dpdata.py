@@ -9,12 +9,22 @@ DP_REPORT_271_DONOR_HEADERS = ['DONOR_ID','FIRST_NAME','LAST_NAME','SP_FNAME','S
                                'NOMAIL','NOMAIL_REASON','GUARDIAN','GUARD_EMAIL',
                                'FY_JOIN_BSD','RECEIPT_DELIVERY','SP_EMPLOYER',
                                'ADVISORY_MEMBER_MULTICODE','SP_ADVISOR_MEMBER_MULTICODE',
-                               'DONOR_EMPLOYER','MAILMERGE_FNAME','SP_MAILMERGE_FNAME']
+                               'DONOR_EMPLOYER','MAILMERGE_FNAME','SP_MAILMERGE_FNAME', 
+                               'HOME_SCHOOL','FORMER_ELEM_SCHOOL']
 
 DP_REPORT_271_STUDENT_HEADERS = ['DONOR_ID','STU_NUMBER','STU_FNAME','STU_LNAME','GRADE','SCHOOL','OTHER_ID','OTHER_DATE','YEARTO']
 
 DP_REPORT_271_HEADERS = list(set(DP_REPORT_271_DONOR_HEADERS + DP_REPORT_271_STUDENT_HEADERS))
 
+DP_SCHOOL_TO_HOMESCHOOL={
+    'BIS': 'BIS',
+    'FRANKLIN': 'FRA',
+    'HOOVER': 'HOO',
+    'LINCOLN': 'LIN',
+    'MCKINLEY': 'MCK',
+    'ROOSEVELT': 'ROOS',
+    'WASHINGTON': 'WAS'
+}
 
 class DPData:
     # These are the default match fields (and number of chars to compare) for DP donors
@@ -123,6 +133,27 @@ class DPData:
     def scrub_data(self):
         self.__fixup_nomail_flag()
         self.__copy_spouse_email()
+
+    def calculate_homeschool(self, student_list):
+        '''given a list of students for the donor, calculate their homeschool.
+        Return the elementary school for all students unless all are in BIS.
+        If more than one elementary school, return ''.
+        '''
+        current_school = ''
+        bis=False
+        for student in student_list:
+            if student['SCHOOL']  in ['FRANKLIN', 'HOOVER', 'LINCOLN','MCKINLEY','ROOSEVELT', 'WASHINGTON']:                
+                if current_school and not current_school == student['SCHOOL']:
+                    current_school = 'multiple'
+                else:
+                    current_school=student['SCHOOL']
+            elif student['SCHOOL'] == 'BIS':
+                bis=True
+        if current_school == 'multiple':
+            return ''
+        if not current_school:
+            return 'BIS' if bis else ""
+        return DP_SCHOOL_TO_HOMESCHOOL[current_school]
 
     def __fixup_nomail_flag(self):
         # Fix up NOMAIL stuff
