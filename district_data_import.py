@@ -202,6 +202,28 @@ for stu_number, district_record in district_records.iteritems():
         if dp_donorrecord_for_update['SPOUSE_EMAIL']:
             dp_donorrecord['SPOUSE_EMAIL'] = dp_donorrecord_for_update['SPOUSE_EMAIL']
 
+        #after updating emails, deail with mailmerge fname fields
+        #we always want to have a real first name in mailmerge fname if there is email for the donor,
+        #particularly after getting any updates from district and after swapping parents.
+        if dp_donorrecord['EMAIL']:
+            mailmerge_fname = dp_donorrecord['MAILMERGE_FNAME']
+            if not mailmerge_fname or mailmerge_fname.lower() == 'no email':
+                dp_donorrecord['MAILMERGE_FNAME'] = dp_donorrecord['FIRST_NAME']
+        else:
+            dp_donorrecord['MAILMERGE_FNAME'] = 'no email'
+
+        #for the spouse mailmerge, it can be 'no email' or set to first name
+        #set it to first_name (or keep the existing name) if they have different emails.
+        #set to no email if they have the same emails or do not have spouse email.
+        if dp_donorrecord['SPOUSE_EMAIL']:
+            if dp_donorrecord['EMAIL'].lower() == dp_donorrecord['SPOUSE_EMAIL'].lower():
+                dp_donorrecord['SP_MAILMERGE_FNAME'] = 'no email'
+            elif dp_donorrecord['SP_MAILMERGE_FNAME'].lower() == 'no email':
+                dp_donorrecord['SP_MAILMERGE_FNAME'] = dp_donorrecord['SP_FNAME']
+        else:
+            dp_donorrecord['SP_MAILMERGE_FNAME'] = 'no email'
+
+
         # For informal salutations, we update it only if it is a straightforward switch of the parent name order.
         # If the computed value is not a straightforward switch, it indicates that a manual update may have occured based on 
         # personal knowledge of nicknames and such, so we leave it alone. 
