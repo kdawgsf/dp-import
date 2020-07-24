@@ -216,9 +216,10 @@ for stu_number, district_record in district_records.iteritems():
         #set it to first_name (or keep the existing name) if they have different emails.
         #set to no email if they have the same emails or do not have spouse email.
         if dp_donorrecord['SPOUSE_EMAIL']:
+            sp_mailmerge_fname = dp_donorrecord['SP_MAILMERGE_FNAME']
             if dp_donorrecord['EMAIL'].lower() == dp_donorrecord['SPOUSE_EMAIL'].lower():
                 dp_donorrecord['SP_MAILMERGE_FNAME'] = 'no email'
-            elif dp_donorrecord['SP_MAILMERGE_FNAME'].lower() == 'no email':
+            elif not sp_mailmerge_fname or sp_mailmerge_fname.lower() == 'no email':
                 dp_donorrecord['SP_MAILMERGE_FNAME'] = dp_donorrecord['SP_FNAME']
         else:
             dp_donorrecord['SP_MAILMERGE_FNAME'] = 'no email'
