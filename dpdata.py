@@ -130,14 +130,15 @@ class DPData:
             res.append(self.get_student(other_id))
         return res
 
-    def scrub_data(self):
+    def scrub_data(self, new_year):
         self.__fixup_nomail_flag()
         self.__copy_spouse_email()
+        self.__set_home_school(new_year)
 
     def calculate_homeschool(self, student_list):
         '''given a list of students for the donor, calculate their homeschool.
         Return the elementary school for all students unless all are in BIS.
-        If more than one elementary school, return ''.
+        If more than one elementary school, return 'multiple'.
         '''
         current_school = ''
         bis=False
@@ -150,7 +151,7 @@ class DPData:
             elif student['SCHOOL'] == 'BIS':
                 bis=True
         if current_school == 'multiple':
-            return ''
+            return 'multiple'
         if not current_school:
             return 'BIS' if bis else ""
         return DP_SCHOOL_TO_HOMESCHOOL[current_school]
@@ -198,6 +199,37 @@ class DPData:
         for dp_donorrecord in self.get_donors():
             if dp_donorrecord['SPOUSE_EMAIL'] and not dp_donorrecord['EMAIL']:
                 dp_donorrecord['EMAIL'] = dp_donorrecord['SPOUSE_EMAIL']
+
+    def __set_home_school(self, new_year):
+        '''set the HOME_SCHOOL field to the correct elementary school or BIS as appropriate
+        If they are no longer in BSD, set it to empty.  Also set Former_ELEMENTARY_SCHOOL.
+        '''
+        for dp_donorrecord in self.get_donors():
+            #if the donor is no longer in BSD, donor_type=NO, set HOME_SCHOOL to empty
+            # and set the former_elem_school if the home_school was an elementary school
+            # note that former_elem_school does not need to be reset if it's already set.
+            if dp_donorrecord['DONOR_TYPE'] == 'NO':
+                #if former elemen school is not set, move the existing home_school if that's elementary.
+                if not dp_donorrecord['FORMER_ELEM_SCHOOL'] and dp_donorrecord['HOME_SCHOOL'] in ('FRA','LIN','MCK','HOO','ROOS','WAS'):
+                    dp_donorrecord['FORMER_ELEM_SCHOOL'] = dp_donorrecord['HOME_SCHOOL']
+                dp_donorrecord['HOME_SCHOOL']= ''
+            else:
+                all_students = self.get_students_for_donor(dp_donorrecord['DONOR_ID'])
+                old_homeschool = dp_donorrecord['HOME_SCHOOL'] #save this for setting the former_elem_school later
+                new_homeschool = self.calculate_homeschool(all_students)
+                if new_homeschool == 'multiple':
+                    if new_year:
+                        #when new year, reset home_school to empty if we get multiple returns.
+                        dp_donorrecord['HOME_SCHOOL'] = ''
+                    #otherwise, leave it as-is.  If it's already set, we will use that for the rest of the year
+                    # if it's not already set, we can't set it anyway.
+                else:
+                    dp_donorrecord['HOME_SCHOOL'] = new_homeschool
+                #try to set the former_elementary _school if not already set.
+                if not dp_donorrecord['FORMER_ELEM_SCHOOL'] and new_homeschool == 'BIS':
+                    dp_donorrecord['FORMER_ELEM_SCHOOL'] = '' if old_homeschool in ('BIS','NULL') else old_homeschool
+
+
 
     def write_updated_students_file(self, csv_filename):
         data = list()

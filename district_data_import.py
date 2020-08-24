@@ -65,7 +65,6 @@ if args.new_year_import:
         if grade and int(grade) < 9:
             dp_studentrecord['GRADE'] = str(1 + int(grade))
 
-
 # Make updates for existing students
 for dp_studentrecord in dp.get_students():
     stu_number = dp_studentrecord['STU_NUMBER']
@@ -246,16 +245,6 @@ for stu_number, district_record in district_records.iteritems():
         if district_record['Parent2Email'] and not dp_donorrecord[parent2_email_field]:
             dp_donorrecord[parent2_email_field] = district_record['Parent2Email']
 
-        #set homeschool IF needs to be changed by looking at all students for the donor
-        #by this time, all students have been promoted and set to their new school
-        all_students = dp.get_students_for_donor(dp_studentrecord['DONOR_ID'])
-        old_homeschool = dp_donorrecord['HOME_SCHOOL']  #save this for setting the former_elem_school later
-        dp_donorrecord['HOME_SCHOOL'] = dp.calculate_homeschool(all_students)
-
-        #set former_elementary_school if not set already
-        if not dp_donorrecord['FORMER_ELEM_SCHOOL'] and dp_donorrecord['HOME_SCHOOL'] == 'BIS':
-            dp_donorrecord['FORMER_ELEM_SCHOOL'] = '' if old_homeschool in ('BIS','NULL') else old_homeschool
-
     else:
         # For multi-donor students, typically both Parent1 and Parent2 are separate donors, and the "spouse" is either
         # the ex-spouse or a non-parent spouse. So, we will match the donor's first name against either Parent1 or
@@ -267,12 +256,6 @@ for stu_number, district_record in district_records.iteritems():
                     dp_donorrecord['EMAIL'] = district_record['Parent1Email']
                 elif district_record['Parent2Email'] and dp_donorrecord['FIRST_NAME'] == district_record['Parent 2 First Name']:
                     dp_donorrecord['EMAIL'] = district_record['Parent2Email']
-            #set homeschool if needs to be changed by looking at all students for the donor
-            all_students = dp.get_students_for_donor(dp_studentrecord['DONOR_ID'])
-            old_homeschool = dp_donorrecord['HOME_SCHOOL']
-            dp_donorrecord['HOME_SCHOOL'] = dp.calculate_homeschool(all_students)
-            if not dp_donorrecord['FORMER_ELEM_SCHOOL'] and dp_donorrecord['HOME_SCHOOL'] == 'BIS':
-                dp_donorrecord['FORMER_ELEM_SCHOOL'] = '' if old_homeschool == 'BIS' else old_homeschool
 
 # Compute manual updates for (most likely) divorced donors
 # The goal is to detect if we have fresher data in the district data, then write out notes in a file to
@@ -315,7 +298,7 @@ for stu_number, district_record in district_records.iteritems():
 
 
 # Do any post-import data scrubbing
-dp.scrub_data()
+dp.scrub_data(args.new_year_import)
 
 
 print()
