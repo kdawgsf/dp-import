@@ -254,7 +254,7 @@ for stu_number, district_record in district_records.iteritems():
 
         #set former_elementary_school if not set already
         if not dp_donorrecord['FORMER_ELEM_SCHOOL'] and dp_donorrecord['HOME_SCHOOL'] == 'BIS':
-            dp_donorrecord['FORMER_ELEM_SCHOOL'] = '' if old_homeschool == 'BIS' else old_homeschool
+            dp_donorrecord['FORMER_ELEM_SCHOOL'] = '' if old_homeschool in ('BIS','NULL') else old_homeschool
 
     else:
         # For multi-donor students, typically both Parent1 and Parent2 are separate donors, and the "spouse" is either
