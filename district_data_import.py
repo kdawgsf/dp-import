@@ -340,4 +340,12 @@ Instructions:
                  Ignore _modified_fields
     %s: manual updates to existing donors. Update manually:
                  Look up existing records and apply updates as necessary
+    Set HOME_SCHOOL to empty.  Global Update -- Update manually:
+                 Utilities -> Global Update.
+                 Select Table: "Main/Bio"
+                 Field to Update: HOME_SCHOOL
+                 Value to Update: leave it blank
+                 Set Selection Filter:  dpudf.[HOME_SCHOOL] = 'EMPTY' (use a filter)
+                 Click "Continue" -- confirm that you are setting to empty string.
+                 
 ''' % (FILENAME_STUDENT_UPDATES, FILENAME_NEWSTUDENT, FILENAME_NEWDONOR, FILENAME_DONOR_UPDATES, FILENAME_DONOR_UPDATE_MESSAGES))

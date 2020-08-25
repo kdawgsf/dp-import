@@ -208,28 +208,38 @@ class DPData:
             #if the donor is no longer in BSD, donor_type=NO, set HOME_SCHOOL to empty
             # and set the former_elem_school if the home_school was an elementary school
             # note that former_elem_school does not need to be reset if it's already set.
+            # DP does not allow you to 'unset' a field (ie set it to empty string) during file import.
+            # so the only way to 'unset' the HOME_SCHOOL field is to set to to something and use
+            # global update in DP to set it to "".  So we'll use "EMPTY" as the code to indicate to unset the field.
+            old_homeschool = dp_donorrecord['HOME_SCHOOL']
+            if old_homeschool == 'NULL':  #fix problem with DP data sending us NULL.
+                old_homeschool = ''
             if dp_donorrecord['DONOR_TYPE'] == 'NO':
                 #if former elemen school is not set, move the existing home_school if that's elementary.
                 if not dp_donorrecord['FORMER_ELEM_SCHOOL'] and dp_donorrecord['HOME_SCHOOL'] in ('FRA','LIN','MCK','HOO','ROOS','WAS'):
                     dp_donorrecord['FORMER_ELEM_SCHOOL'] = dp_donorrecord['HOME_SCHOOL']
-                dp_donorrecord['HOME_SCHOOL']= ''
+                if old_homeschool:  #if it's set to something indicate that it should be unset
+                    dp_donorrecord['HOME_SCHOOL'] = 'EMPTY'
             else:
                 all_students = self.get_students_for_donor(dp_donorrecord['DONOR_ID'])
-                old_homeschool = dp_donorrecord['HOME_SCHOOL'] #save this for setting the former_elem_school later
                 new_homeschool = self.calculate_homeschool(all_students)
                 if new_homeschool == 'multiple':
                     if new_year:
                         #when new year, reset home_school to empty if we get multiple returns.
-                        dp_donorrecord['HOME_SCHOOL'] = ''
+                        if old_homeschool:  #only if it's not empty -- set it to empty
+                            dp_donorrecord['HOME_SCHOOL'] = 'EMPTY'
+
                     #otherwise, leave it as-is.  If it's already set, we will use that for the rest of the year
                     # if it's not already set, we can't set it anyway.
-                else:
+                elif new_homeschool:
                     dp_donorrecord['HOME_SCHOOL'] = new_homeschool
+                elif old_homeschool:  #if there was something there, reset to EMPTY
+                    dp_donorrecord['HOME_SCHOOL'] = 'EMPTY'
+
                 #try to set the former_elementary _school if not already set.
                 if not dp_donorrecord['FORMER_ELEM_SCHOOL'] and new_homeschool == 'BIS':
-                    dp_donorrecord['FORMER_ELEM_SCHOOL'] = '' if old_homeschool in ('BIS','NULL') else old_homeschool
-
-
+                    if old_homeschool in ('FRA','LIN','MCK','HOO','ROOS','WAS'):
+                        dp_donorrecord['FORMER_ELEM_SCHOOL'] = old_homeschool 
 
     def write_updated_students_file(self, csv_filename):
         data = list()
