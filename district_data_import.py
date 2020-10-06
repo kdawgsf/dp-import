@@ -156,9 +156,9 @@ for stu_number, district_record in district_records.iteritems():
         # Update address
         dp_donorrecord.update({
             'ADDRESS': district_record['Mailing_Street'],
-            'CITY': district_record['City'],
-            'STATE': district_record['State'],
-            'ZIP': district_record['Zip']
+            'CITY': district_record['Mailing_City'],
+            'STATE': district_record['Mailing_State'],
+            'ZIP': district_record['Mailing_Zip']
         })
 
         dp_donorrecord_for_update = district_data_utils.create_dp_donorrecord(district_record=district_record, school_year=args.school_year)
@@ -268,7 +268,7 @@ for stu_number, district_record in district_records.iteritems():
     if len(dp_studentrecords) < 2:
         continue
 
-    district_address = '%s %s %s %s' % (district_record['Mailing_Street'], district_record['City'], district_record['State'], district_record['Zip'])
+    district_address = '%s %s %s %s' % (district_record['Mailing_Street'], district_record['Mailing_City'], district_record['Mailing_State'], district_record['Mailing_Zip'])
 
     # Cases we are trying to detect:
     # 1. District address is not present on any of the donors
