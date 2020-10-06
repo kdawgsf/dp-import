@@ -40,7 +40,8 @@ preschool_count = 0
 empty_parent_count = 0
 for row in utils.load_csv_file(args.district_data, district_data_utils.DISTRICT_DATA_HEADERS):
     enroll_status = row['Enroll_Status']
-    if enroll_status not in ['Pre-Registered', 'Returning']:
+    #if enroll_status not in ['Pre-Registered', 'Returning']:
+    if False:
         status_counts[enroll_status] = 1 + status_counts.get(enroll_status, 0)
     else:
         if row['School'] == 'PreSchool':

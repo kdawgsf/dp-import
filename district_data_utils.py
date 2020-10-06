@@ -7,7 +7,7 @@ DISTRICT_DATA_HEADERS = ['School', 'SystemID', 'Student Last Name', 'Student Fir
                          'Parent2Email',
                          'Grade',
                          'Comment',
-                         'Entrycode', 'entrydate', 'Enroll_Status', 'FamilyID', 'exitdate']
+                         'Entrycode', 'entrydate', 'Enroll_Status', 'FamilyID', 'exitdate', 'cell']
 # 'GuardianDayPhone'
 # 'guardian', 'guardianemail',
 
