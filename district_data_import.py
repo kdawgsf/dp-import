@@ -133,13 +133,13 @@ for stu_number, district_record in district_records.iteritems():
 
 # Update GUARD_EMAIL on existing donors
 # Requirement is to update this for all donors for a student (if changed)
-for stu_number, district_record in district_records.iteritems():
-    guard_email = district_record['guardianemail']
-    if guard_email:
-        for dp_studentrecord in dp.get_students_for_stu_number(stu_number):
-            dp_donorrecord = dp.get_donor(dp_studentrecord['DONOR_ID'])
-            if utils.normalize_email(dp_donorrecord['GUARD_EMAIL']) != utils.normalize_email(guard_email):
-                dp_donorrecord['GUARD_EMAIL'] = guard_email
+# for stu_number, district_record in district_records.iteritems():
+#     guard_email = district_record['guardianemail']
+#     if guard_email:
+#         for dp_studentrecord in dp.get_students_for_stu_number(stu_number):
+#             dp_donorrecord = dp.get_donor(dp_studentrecord['DONOR_ID'])
+#             if utils.normalize_email(dp_donorrecord['GUARD_EMAIL']) != utils.normalize_email(guard_email):
+#                 dp_donorrecord['GUARD_EMAIL'] = guard_email
 
 
 # Compute donor-level updates
@@ -154,7 +154,7 @@ for stu_number, district_record in district_records.iteritems():
 
         # Update address
         dp_donorrecord.update({
-            'ADDRESS': district_record['Street'],
+            'ADDRESS': district_record['Mailing_Street'],
             'CITY': district_record['City'],
             'STATE': district_record['State'],
             'ZIP': district_record['Zip']
@@ -267,7 +267,7 @@ for stu_number, district_record in district_records.iteritems():
     if len(dp_studentrecords) < 2:
         continue
 
-    district_address = '%s %s %s %s' % (district_record['Street'], district_record['City'], district_record['State'], district_record['Zip'])
+    district_address = '%s %s %s %s' % (district_record['Mailing_Street'], district_record['City'], district_record['State'], district_record['Zip'])
 
     # Cases we are trying to detect:
     # 1. District address is not present on any of the donors
