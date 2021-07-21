@@ -18,6 +18,7 @@ The district provides an excel spreadsheet with the data we need. This spreadshe
 1. Open the file in Excel
 2. Remove the rows about the column headers
 3. Save csv to our Upload-Archive directory: File -> Save As... -> Format: Comma Separated Values (.csv).
+4. Make sure all information is 'clean'.  Sometimes fields with empty data gets "-", or "#N/A" instead of "". Remove all these bogus data to provide a clean field.
 
 ### Create DP export file
 

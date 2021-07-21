@@ -9,8 +9,8 @@ import utils
 
 FILENAME_STUDENT_UPDATES = '01-student-updates.csv'
 FILENAME_NEWSTUDENT = '02-new-students.csv'
-FILENAME_NEWDONOR = '03-new-donors.csv'
-FILENAME_DONOR_UPDATES = '04-donor-updates.csv'
+FILENAME_DONOR_UPDATES = '03-donor-updates.csv'  #do the updates first to get any change addresses, etc.
+FILENAME_NEWDONOR = '04-new-donors.csv'  #do this last so that new donors will match on existing donors.
 FILENAME_DONOR_UPDATE_MESSAGES = '05-donor-manual-updates.txt'
 
 parser = argparse.ArgumentParser()
@@ -35,23 +35,16 @@ dp = DPData(args.dp_report)
 
 # Load district data keyed off student number ("SystemID" there)
 district_records = {}
-status_counts = {}
 preschool_count = 0
 empty_parent_count = 0
 for row in utils.load_csv_file(args.district_data, district_data_utils.DISTRICT_DATA_HEADERS):
-    enroll_status = row['Enroll_Status']
-    if enroll_status not in ['Pre-Registered', 'Returning']:
-        status_counts[enroll_status] = 1 + status_counts.get(enroll_status, 0)
+    if row['School'] == 'PreSchool':
+        preschool_count += 1
+    elif not (row['Contact 1 Last Name'] or row['Contact 2 Last Name']):
+        empty_parent_count += 1
     else:
-        if row['School'] == 'PreSchool':
-            preschool_count += 1
-        elif not (row['Parent 1 Last Name'] or row['Parent 2 Last Name']):
-            empty_parent_count += 1
-        else:
-            district_records[row['SystemID']] = row
+        district_records[row['SystemID']] = row
 
-for (status, count) in status_counts.iteritems():
-    print("Ignored %d district records with Enroll_Status of '%s'" % (count, status))
 if preschool_count > 0:
     print("Ignored %d district records with a school of PreSchool" % (empty_parent_count))
 if empty_parent_count > 0:
@@ -72,13 +65,11 @@ for dp_studentrecord in dp.get_students():
         # Returning student
         dp_studentrecord['GRADE'] = district_data_utils.dp_grade_for_district_record(district_records[stu_number])
         dp_studentrecord['SCHOOL'] = district_data_utils.district_school_to_dp_school(district_records[stu_number]['School'])
-        # District data has 6th graders at the elementary schools, so manually update these
-        if dp_studentrecord['GRADE'] == '6':
-            dp_studentrecord['SCHOOL'] = 'BIS'
     elif args.new_year_import and dp_studentrecord['GRADE'] == '9' and dp_studentrecord['SCHOOL'] == 'BIS':
         dp_studentrecord['SCHOOL'] = 'ALUM'
         dp_studentrecord['YEARTO'] = str(datetime.now().year)
     elif dp_studentrecord['SCHOOL'] not in ['ALUM','NOBSD']:
+        #this student didn't return back to BSD
         dp_studentrecord['SCHOOL'] = 'NOBSD'
         dp_studentrecord['YEARTO'] = str(datetime.now().year)
 
@@ -100,8 +91,7 @@ for dp_donorrecord in dp.get_donors():
 for stu_number, district_record in district_records.iteritems():
     if dp.get_students_for_stu_number(stu_number):
         continue
-
-    donor_ids_encountered = set()
+    donor_id = None
 
     # At this point we know that: 
     #   (a) this student isn't in DP (i.e., this is new student)
@@ -111,17 +101,50 @@ for stu_number, district_record in district_records.iteritems():
     # If either (i) or (ii) is true, then DP will not create a new record, but update the existing donor record, so we should be okay. 
     # At any rate, we have to prepare a new record for this donor, with several custom fields
     #print("Creating record for new donor w/ new student %s" % (stu_number))
-    dp_donorrecord_for_matching = district_data_utils.create_dp_donorrecord(district_record=district_record, school_year=args.school_year)
+    dp_donorrecord_for_matching = district_data_utils.create_dp_donorrecord(
+        district_record=district_record, school_year=args.school_year)
     match_key = dp.compute_match_key(dp_donorrecord_for_matching)
     if match_key in match_key_to_donor_id:
         # Use the matched donor rather than the one we created for matching purposes
         donor_id = match_key_to_donor_id[match_key]
     else:
-        # No match, so go ahead and add the new donor to DP
-        donor_id = dp.gen_donor_id()
-        match_key_to_donor_id[match_key] = donor_id
-        dp_donorrecord_for_matching['DONOR_ID'] = donor_id
-        dp.add_donor(dp_donorrecord_for_matching)
+        #check against the alternate donor record in case we have the student
+        #under the alternate household (ie divorced parents)
+        dp_alternate_donorrecord_for_matching = district_data_utils.create_dp_donorrecord(
+            district_record, args.school_year, use_alternate=True)
+        if dp_alternate_donorrecord_for_matching:
+            match_key = dp.compute_match_key(dp_alternate_donorrecord_for_matching)
+            if match_key in match_key_to_donor_id:
+                donor_id = match_key_to_donor_id[match_key]
+            else:
+                #not a match for alternate household either.  Should add both donors
+                #for now add the alternate donor and add the student to that
+                donor_id = dp.gen_donor_id()
+                match_key_to_donor_id[match_key] = donor_id
+                dp_alternate_donorrecord_for_matching['DONOR_ID'] = donor_id
+                dp.add_donor(dp_alternate_donorrecord_for_matching)
+                dp_studentrecord = district_data_utils.create_dp_studentrecord(district_record)
+                dp_studentrecord['DONOR_ID'] = donor_id
+                dp_studentrecord['OTHER_ID'] = dp.gen_other_id()
+                dp.add_student(dp_studentrecord)        
+                donor_id = None  #setting this to None so that a new donor record for
+                #original household will get created below.
+        else:
+            #this district record does not have alternate household. BUT it's possible
+            #that the student is registering with different parent.  So we'll try to 
+            #match against the different parent name.
+            dp_swap_donorrecord_for_matching = district_data_utils.create_dp_donorrecord(
+                district_record, args.school_year, use_alternate=False, swap_parents=True
+            )
+            match_key = dp.compute_match_key(dp_swap_donorrecord_for_matching)
+            if match_key in match_key_to_donor_id:
+                donor_id = match_key_to_donor_id[match_key]
+        if not donor_id:
+            # No match, so go ahead and add the new donor to DP
+            donor_id = dp.gen_donor_id()
+            match_key_to_donor_id[match_key] = donor_id
+            dp_donorrecord_for_matching['DONOR_ID'] = donor_id
+            dp.add_donor(dp_donorrecord_for_matching)
 
     dp_studentrecord = district_data_utils.create_dp_studentrecord(district_record)
     dp_studentrecord['DONOR_ID'] = donor_id
@@ -130,47 +153,60 @@ for stu_number, district_record in district_records.iteritems():
 
 #End loop over student IDs in district data
 
+#this list is used to output any manual updates -- splitting single household into two households.
+dp_messages_existingdonorrecords = list()
 
-# Update GUARD_EMAIL on existing donors
-# Requirement is to update this for all donors for a student (if changed)
-# for stu_number, district_record in district_records.iteritems():
-#     guard_email = district_record['guardianemail']
-#     if guard_email:
-#         for dp_studentrecord in dp.get_students_for_stu_number(stu_number):
-#             dp_donorrecord = dp.get_donor(dp_studentrecord['DONOR_ID'])
-#             if utils.normalize_email(dp_donorrecord['GUARD_EMAIL']) != utils.normalize_email(guard_email):
-#                 dp_donorrecord['GUARD_EMAIL'] = guard_email
-
-
-# Compute donor-level updates
+# Compute donor-level updates, typically updating address of the student.  But if we find out that
+#the student is now living in a divorced household (ie, alternate household exists) we want to
+#create a donor record for the divorced parent. (this part is done manually as we need to split the
+# original donor record into two)
 
 for stu_number, district_record in district_records.iteritems():
     dp_studentrecords = dp.get_students_for_stu_number(stu_number)
 
     if len(dp_studentrecords) == 1:
+        #print("processing StudentID: %s"%stu_number)
         # Logic for single-donor students is simpler (typically married parents or only one parent)
         dp_studentrecord = next(iter(dp_studentrecords))
         dp_donorrecord = dp.get_donor(dp_studentrecord['DONOR_ID'])
 
-        # Update address
-        dp_donorrecord.update({
-            'ADDRESS': district_record['Mailing_Street'],
-            'CITY': district_record['Mailing_City'],
-            'STATE': district_record['Mailing_State'],
-            'ZIP': district_record['Mailing_Zip']
-        })
+        # Update address if the parents have not divorced
+        if district_data_utils.different_household(district_record):
+            #find which address should be updated for this donor and add the alternate household
+            #record for this student to the manual updates file.
+            str_list = list()
+            str_list.append('New Alternate address specified for existing student. %s %s %s'%
+                  (district_record['Student First Name'], district_record['Student Last Name'].strip(), stu_number))
+            str_list.append("Existing DP Record: (%s) %s %s/%s %s"%(dp_donorrecord['DONOR_ID'],
+                dp_donorrecord['FIRST_NAME'],dp_donorrecord['LAST_NAME'], dp_donorrecord['OPT_LINE'],
+                dp_donorrecord['ADDRESS']))
+            str_list.append("First Household: %s %s %s %s"%(district_record['Contact 1 First Name'].strip(), district_record['Contact 1 Last Name'].strip(),
+                                               district_record['Contact 1 Relationship'], district_record['Contact 1 Street']))
+            str_list.append("Second Household: %s %s %s %s"%(district_record['Contact 2 First Name'].strip(), district_record['Contact 2 Last Name'].strip(),
+                            district_record['Contact 2 Relationship'], district_record['Contact 2 Street']))
+            dp_messages_existingdonorrecords.append('\n'.join(str_list) + '\n\n')
+            continue
+        else:
+            dp_donorrecord.update({
+                'ADDRESS': district_record['Contact 1 Street'],
+                'CITY': district_record['Contact 1 City'],
+                'STATE': district_record['Contact 1 State'],
+                'ZIP': district_record['Contact 1 Zip']
+            })
 
-        dp_donorrecord_for_update = district_data_utils.create_dp_donorrecord(district_record=district_record, school_year=args.school_year)
+        dp_donorrecord_for_update = district_data_utils.create_dp_donorrecord(
+            district_record=district_record, school_year=args.school_year)
 
         # Figure out if we are changing the parent order by importing the district data
         parent_order_changed = False
-        old_informal_sal_upper = district_data_utils.create_informal_sal(dp_donorrecord['FIRST_NAME'], dp_donorrecord['SP_FNAME']).upper()
-        new_informal_sal_upper = district_data_utils.create_informal_sal(dp_donorrecord_for_update['FIRST_NAME'], dp_donorrecord_for_update['SP_FNAME']).upper()
+        old_informal_sal_upper = district_data_utils.create_informal_sal(
+            dp_donorrecord['FIRST_NAME'], dp_donorrecord['SP_FNAME']).upper()
+        new_informal_sal_upper = district_data_utils.create_informal_sal(
+            dp_donorrecord_for_update['FIRST_NAME'], dp_donorrecord_for_update['SP_FNAME']).upper()
         if old_informal_sal_upper != new_informal_sal_upper and len(dp_donorrecord_for_update['SP_LNAME']) > 0:
             # Something changed, so use edit distance to see if this looks like a parent order swap
             old_informal_sal_reversed_upper = district_data_utils.create_informal_sal(dp_donorrecord['SP_FNAME'], dp_donorrecord['FIRST_NAME']).upper()
             parent_order_changed = district_data_utils.levenshteinDistance(old_informal_sal_reversed_upper, new_informal_sal_upper) < district_data_utils.levenshteinDistance(old_informal_sal_upper, new_informal_sal_upper)
-
         # Update for potential switch of parent name order (email handled below)
         dp_donorrecord.update({
             'FIRST_NAME': dp_donorrecord_for_update['FIRST_NAME'],
@@ -184,6 +220,7 @@ for stu_number, district_record in district_records.iteritems():
 
         # If parent order changed, then swap employer, advisory member, and mailmerge first name, and email
         if parent_order_changed:
+            #print("dp_donorrecord is: %s"%dp_donorrecord)
             dp_donorrecord.update({
                 'DONOR_EMPLOYER': dp_donorrecord['SP_EMPLOYER'],
                 'SP_EMPLOYER': dp_donorrecord['DONOR_EMPLOYER'],
@@ -237,13 +274,13 @@ for stu_number, district_record in district_records.iteritems():
             })
 
         # Update email based on parent1 email
-        if district_record['Parent1Email'] and not dp_donorrecord['EMAIL']:
-            dp_donorrecord['EMAIL'] = district_record['Parent1Email']
+        if district_record['Contact 1 Email'] and not dp_donorrecord['EMAIL']:
+            dp_donorrecord['EMAIL'] = district_record['Contact 1 Email'].strip()
 
         # Update email based on parent2 email
-        parent2_email_field = 'SPOUSE_EMAIL' if district_record['Parent 1 Last Name'] else 'EMAIL'
-        if district_record['Parent2Email'] and not dp_donorrecord[parent2_email_field]:
-            dp_donorrecord[parent2_email_field] = district_record['Parent2Email']
+        parent2_email_field = 'SPOUSE_EMAIL' if district_record['Contact 1 Last Name'] else 'EMAIL'
+        if district_record['Contact 2 Email'] and not dp_donorrecord[parent2_email_field]:
+            dp_donorrecord[parent2_email_field] = district_record['Contact 2 Email'].strip()
 
     else:
         # For multi-donor students, typically both Parent1 and Parent2 are separate donors, and the "spouse" is either
@@ -252,22 +289,21 @@ for stu_number, district_record in district_records.iteritems():
         for dp_studentrecord in dp_studentrecords:
             dp_donorrecord = dp.get_donor(dp_studentrecord['DONOR_ID'])
             if not dp_donorrecord['EMAIL']:
-                if district_record['Parent1Email'] and dp_donorrecord['FIRST_NAME'] == district_record['Parent 1 First Name']:
-                    dp_donorrecord['EMAIL'] = district_record['Parent1Email']
-                elif district_record['Parent2Email'] and dp_donorrecord['FIRST_NAME'] == district_record['Parent 2 First Name']:
-                    dp_donorrecord['EMAIL'] = district_record['Parent2Email']
+                if district_record['Contact 1 Email'] and dp_donorrecord['FIRST_NAME'] == district_record['Contact 1 First Name']:
+                    dp_donorrecord['EMAIL'] = district_record['Contact 1 Email']
+                elif district_record['Contact 2 Email'] and dp_donorrecord['FIRST_NAME'] == district_record['Contact 2 First Name']:
+                    dp_donorrecord['EMAIL'] = district_record['Contact 2 Email']
 
 # Compute manual updates for (most likely) divorced donors
 # The goal is to detect if we have fresher data in the district data, then write out notes in a file to
 # be processed by someone manually interacting with DP.
-dp_messages_existingdonorrecords = list()
 dp_messages_donor_ids = set()
 for stu_number, district_record in district_records.iteritems():
     dp_studentrecords = dp.get_students_for_stu_number(stu_number)
     if len(dp_studentrecords) < 2:
         continue
 
-    district_address = '%s %s %s %s' % (district_record['Mailing_Street'], district_record['Mailing_City'], district_record['Mailing_State'], district_record['Mailing_Zip'])
+    district_address = '%s %s %s %s' % (district_record['Contact 1 Street'], district_record['Contact 1 City'], district_record['Contact 1 State'], district_record['Contact 1 Zip'][:5])
 
     # Cases we are trying to detect:
     # 1. District address is not present on any of the donors
@@ -275,7 +311,7 @@ for stu_number, district_record in district_records.iteritems():
     for dp_studentrecord in dp_studentrecords:
         donor_id = dp_studentrecord['DONOR_ID']
         dp_donorrecord = dp.get_donor(donor_id)
-        dp_addresses_by_donor_id[donor_id] = '%s %s %s %s' % (dp_donorrecord['ADDRESS'], dp_donorrecord['CITY'], dp_donorrecord['STATE'], dp_donorrecord['ZIP'])
+        dp_addresses_by_donor_id[donor_id] = '%s %s %s %s' % (dp_donorrecord['ADDRESS'], dp_donorrecord['CITY'], dp_donorrecord['STATE'], dp_donorrecord['ZIP'][:5])
 
     donor_ids_for_student = set(dp_addresses_by_donor_id.keys())
     if dp_messages_donor_ids.issuperset(donor_ids_for_student):
@@ -289,7 +325,7 @@ for stu_number, district_record in district_records.iteritems():
     if flag_address:
         str_list = list()
         str_list.append("Found MANUAL UPDATE for student %s %s (%s) with %d donor records:" %
-                        (district_record['Student First Name'], district_record['Student Last Name'], stu_number, len(dp_studentrecords)))
+                        (district_record['Student First Name'], district_record['Student Last Name'].strip(), stu_number, len(dp_studentrecords)))
         if flag_address:
             for donor_id, dp_address in dp_addresses_by_donor_id.iteritems():
                 str_list.append("  Donor %s address: %s" % (donor_id, dp_address))
@@ -327,17 +363,17 @@ Instructions:
                  When importing this file: Insert new transaction records for existing donors,
                  My import file includes: Other Info,
                  Record matching: Off
-    %s: creates records for new donors (and potentially updates some existing ones) / students. Import third:
-                 Utilities -> Import,
-                 When importing this file: Update Existing Records then insert the rest as new,
-                 My import file includes: Main Records and Other Info Transactions,
-                 Record matching: On
-    %s: updates to existing donors. Import last:
+    %s: updates to existing donors. Import third:
                  Utilities -> Import,
                  When importing this file: Update Existing Records then insert the rest as new,
                  My import file includes: Main Records Only,
                  Record matching: On,
                  Ignore _modified_fields
+    %s: creates records for new donors (and potentially updates some existing ones) / students. Import last:
+                 Utilities -> Import,
+                 When importing this file: Update Existing Records then insert the rest as new,
+                 My import file includes: Main Records and Other Info Transactions,
+                 Record matching: On
     %s: manual updates to existing donors. Update manually:
                  Look up existing records and apply updates as necessary
     Set HOME_SCHOOL to empty.  Global Update -- Update manually:
