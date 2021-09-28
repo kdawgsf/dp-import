@@ -384,4 +384,4 @@ Instructions:
                  Set Selection Filter:  dpudf.[HOME_SCHOOL] = 'EMPTY' (use a filter)
                  Click "Continue" -- confirm that you are setting to empty string.
                  
-''' % (FILENAME_STUDENT_UPDATES, FILENAME_NEWSTUDENT, FILENAME_NEWDONOR, FILENAME_DONOR_UPDATES, FILENAME_DONOR_UPDATE_MESSAGES))
+''' % (FILENAME_STUDENT_UPDATES, FILENAME_NEWSTUDENT, FILENAME_DONOR_UPDATES, FILENAME_NEWDONOR,  FILENAME_DONOR_UPDATE_MESSAGES))
