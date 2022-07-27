@@ -61,6 +61,7 @@ class DPData:
             if other_id in self.__studentrecords:
                 raise ValueError("Found a duplicate OTHER_ID in report 271, the report's assumptions are now violated")
             studentrecord = dict((header, row[header]) for header in DP_REPORT_271_STUDENT_HEADERS)
+            self.__fix_studentrecord(studentrecord)
             self.add_student(studentrecord)
             self.__unmodified_studentrecords[other_id] = studentrecord.copy()
 
@@ -74,6 +75,14 @@ class DPData:
         next = self.__last_seq_values.get(seq, 0) + 1
         self.__last_seq_values[seq] = next
         return next
+
+    def __fix_studentrecord(self, data):
+        #fix the studentrecord from DP to cleanup any issues with the data.
+        yearto = data['YEARTO']
+        if not yearto == "":
+            data['YEARTO'] = int(float(yearto.replace(",",'')))
+            if data['YEARTO'] == 0:
+                data['YEARTO'] = ''
 
     def gen_donor_id(self):
         return str(-1 * self.__next_seq_value('DONOR_ID'))
@@ -244,7 +253,7 @@ class DPData:
     def write_updated_students_file(self, csv_filename):
         data = list()
         headers = utils.list_with_mods(DP_REPORT_271_STUDENT_HEADERS, add=['_MODIFIED_FIELDS'])
-        for other_id, studentrecord in self.__studentrecords.iteritems():
+        for other_id, studentrecord in self.__studentrecords.items():
             if int(other_id) >= 0 and studentrecord != self.__unmodified_studentrecords[other_id]:
                 row = utils.dict_filtered_copy(studentrecord, headers)
                 row['_MODIFIED_FIELDS'] = '|'.join(self.__get_modified_fields(studentrecord))
@@ -257,7 +266,7 @@ class DPData:
     def write_new_students_for_existing_donors_file(self, csv_filename):
         data = list()
         headers = utils.list_with_mods(DP_REPORT_271_STUDENT_HEADERS, remove=['OTHER_ID'])
-        for other_id, studentrecord in self.__studentrecords.iteritems():
+        for other_id, studentrecord in self.__studentrecords.items():
             if int(other_id) < 0 and int(studentrecord['DONOR_ID']) >= 0:
                 row = utils.dict_filtered_copy(studentrecord, headers)
                 data.append(row)
@@ -266,7 +275,7 @@ class DPData:
     def write_new_students_for_new_donors_file(self, csv_filename):
         data = list()
         headers = utils.list_with_mods(DP_REPORT_271_HEADERS, remove=['DONOR_ID', 'OTHER_ID', 'ADVISORY_MEMBER_MULTICODE', 'SP_ADVISOR_MEMBER_MULTICODE', 'DONOR_EMPLOYER', 'SP_EMPLOYER'])
-        for other_id, studentrecord in self.__studentrecords.iteritems():
+        for other_id, studentrecord in self.__studentrecords.items():
             if int(other_id) < 0 and int(studentrecord['DONOR_ID']) < 0:
                 # Combine donor and student fields into a single row
                 row = utils.dict_filtered_copy(studentrecord, headers)
@@ -277,7 +286,7 @@ class DPData:
     def write_updated_donors_file(self, csv_filename):
         data = []
         headers = utils.list_with_mods(DP_REPORT_271_DONOR_HEADERS, add=['_MODIFIED_FIELDS'], remove=['ADVISORY_MEMBER_MULTICODE', 'SP_ADVISOR_MEMBER_MULTICODE'])
-        for donor_id, donorrecord in self.__donorrecords.iteritems():
+        for donor_id, donorrecord in self.__donorrecords.items():
             if int(donor_id) >= 0 and donorrecord != self.__unmodified_donorrecords[donor_id]:
                 row = utils.dict_filtered_copy(donorrecord, headers)
                 row['_MODIFIED_FIELDS'] = '|'.join(self.__get_modified_fields(donorrecord))
@@ -285,7 +294,7 @@ class DPData:
         utils.save_as_csv_file(csv_filename, headers, data)
 
     def __get_modified_fields(self, donor_or_student):
-        if donor_or_student.has_key('OTHER_ID'):
+        if 'OTHER_ID' in donor_or_student.keys():
             return utils.modified_fields(self.__unmodified_studentrecords[donor_or_student['OTHER_ID']], donor_or_student)
         else:
             return utils.modified_fields(self.__unmodified_donorrecords[donor_or_student['DONOR_ID']], donor_or_student)
@@ -293,6 +302,7 @@ class DPData:
     def compute_match_key(self, donorrecord):
         """Returns a string representing the concatenation of all the match key values, trimmed/padded to size"""
         key = ''
-        for field, chars_to_compare in self.__DONOR_MATCH_FIELDS.iteritems():
-            key += donorrecord.get(field).translate(None, ' -')[:chars_to_compare].upper().ljust(chars_to_compare)
+        for field, chars_to_compare in self.__DONOR_MATCH_FIELDS.items():
+            #remove space and - from the string.
+            key += donorrecord.get(field).translate({ord(' '):None, ord('-'): None})[:chars_to_compare].upper().ljust(chars_to_compare)
         return key

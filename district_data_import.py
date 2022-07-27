@@ -88,7 +88,7 @@ for dp_donorrecord in dp.get_donors():
     match_key_to_donor_id[match_key] = donor_id
 
 # Add new students, either to existing or new families
-for stu_number, district_record in district_records.iteritems():
+for stu_number, district_record in district_records.items():
     if dp.get_students_for_stu_number(stu_number):
         continue
     donor_id = None
@@ -161,7 +161,7 @@ dp_messages_existingdonorrecords = list()
 #create a donor record for the divorced parent. (this part is done manually as we need to split the
 # original donor record into two)
 
-for stu_number, district_record in district_records.iteritems():
+for stu_number, district_record in district_records.items():
     dp_studentrecords = dp.get_students_for_stu_number(stu_number)
 
     if len(dp_studentrecords) == 1:
@@ -222,10 +222,10 @@ for stu_number, district_record in district_records.iteritems():
         if parent_order_changed:
             #print("dp_donorrecord is: %s"%dp_donorrecord)
             dp_donorrecord.update({
-                'DONOR_EMPLOYER': dp_donorrecord['SP_EMPLOYER'],
-                'SP_EMPLOYER': dp_donorrecord['DONOR_EMPLOYER'],
-                'ADVISORY_MEMBER_MULTICODE': dp_donorrecord['SP_ADVISOR_MEMBER_MULTICODE'],
-                'SP_ADVISOR_MEMBER_MULTICODE': dp_donorrecord['ADVISORY_MEMBER_MULTICODE'],
+                'DONOR_EMPLOYER': dp_donorrecord.get('SP_EMPLOYER',''),
+                'SP_EMPLOYER': dp_donorrecord.get('DONOR_EMPLOYER',''),
+                'ADVISORY_MEMBER_MULTICODE': dp_donorrecord.get('SP_ADVISOR_MEMBER_MULTICODE',''),
+                'SP_ADVISOR_MEMBER_MULTICODE': dp_donorrecord.get('ADVISORY_MEMBER_MULTICODE',''),
                 'MAILMERGE_FNAME': dp_donorrecord['SP_MAILMERGE_FNAME'],
                 'SP_MAILMERGE_FNAME': dp_donorrecord['MAILMERGE_FNAME'],
                 'EMAIL': dp_donorrecord['SPOUSE_EMAIL'],
@@ -298,7 +298,7 @@ for stu_number, district_record in district_records.iteritems():
 # The goal is to detect if we have fresher data in the district data, then write out notes in a file to
 # be processed by someone manually interacting with DP.
 dp_messages_donor_ids = set()
-for stu_number, district_record in district_records.iteritems():
+for stu_number, district_record in district_records.items():
     dp_studentrecords = dp.get_students_for_stu_number(stu_number)
     if len(dp_studentrecords) < 2:
         continue
@@ -327,7 +327,7 @@ for stu_number, district_record in district_records.iteritems():
         str_list.append("Found MANUAL UPDATE for student %s %s (%s) with %d donor records:" %
                         (district_record['Student First Name'], district_record['Student Last Name'].strip(), stu_number, len(dp_studentrecords)))
         if flag_address:
-            for donor_id, dp_address in dp_addresses_by_donor_id.iteritems():
+            for donor_id, dp_address in dp_addresses_by_donor_id.items():
                 str_list.append("  Donor %s address: %s" % (donor_id, dp_address))
             str_list.append("  District address: %s" % district_address)
         dp_messages_existingdonorrecords.append('\n'.join(str_list) + '\n\n')
