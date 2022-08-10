@@ -73,12 +73,14 @@ def create_informal_sal(main_f_name, spouse_f_name):
 
 def different_household(district_record):
     #return True if the district record contains two households.
-    #it's two household if the two addresses are different AND the second
+    #it's two household if the two addresses are different (not empty) AND the second
     #household is mother/father relationship.
     #We only match the first 8 chars of the address as we see lots of different
     #variation on addresses.
-    if (district_record['Contact 1 Street'] and district_record['Contact 2 Street']
-        and district_record['Contact 1 Street'].strip()[:8] != district_record['Contact 2 Street'].strip()[:8]):
+    street1=district_record['Contact 1 Street'].strip()
+    street2=district_record['Contact 2 Street'].strip()
+    if (street1 and street2
+        and district_record['Contact 1 Street'].strip().upper()[:8] != district_record['Contact 2 Street'].strip().upper()[:8]):
         return district_record['Contact 2 Relationship'] in ('Mother', 'Father')
     return False
 
@@ -112,10 +114,16 @@ def create_dp_donorrecord(district_record, school_year, use_alternate=False, swa
             main_f_name = district_record['Contact 1 First Name'].strip()
             main_email = district_record['Contact 1 Email'].strip()
             main_phone = district_record['Contact 1 Phone']
+            #if contact1 street is empty, use contact2 street instead -- as sometimes one parent only fills in the address partially.
             street = district_record['Contact 1 Street'].strip()
             city = district_record['Contact 1 City']
             zip = district_record['Contact 1 Zip']
             state = district_record['Contact 1 State']
+            if not street and district_record['Contact 2 Relationship'] in ("Mother","Father", 'Stepmother','Stepfather'):
+                street=district_record['Contact 2 Street'].strip()
+                city = district_record['Contact 2 City']
+                zip=district_record['Contact 2 Zip']
+                state = district_record['Contact 2 State']
             #spouse record is filled in ONLY if the address is the same AND
             # contact 2 relationship is mother/father/stepfather/stepmother
             if different_household(district_record):

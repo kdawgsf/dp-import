@@ -13,7 +13,7 @@ FILENAME_DONOR_UPDATES = '03-donor-updates.csv'  #do the updates first to get an
 FILENAME_NEWDONOR = '04-new-donors.csv'  #do this last so that new donors will match on existing donors.
 FILENAME_DONOR_UPDATE_MESSAGES = '05-donor-manual-updates.txt'
 
-parser = argparse.ArgumentParser()
+parser = argparse.ArgumentParser(description="Uploads data from BSD to DonorPerfect")
 parser.add_argument("--dp-report",
                     help="csv output from DP: Reports -> Report Center -> 271 Name Contacts Other -> Include \"NO MAIL\" Names -> run report -> export as .csv",
                     required=True)
@@ -26,6 +26,8 @@ parser.add_argument("--school-year",
 group = parser.add_mutually_exclusive_group(required=True)
 group.add_argument("--new-year-import", help="specify that this is a beginning-of-year import, in which missing 8th graders will be graduated", action="store_true")
 group.add_argument("--mid-year-update", help="specify that this is a mid-year update", action="store_true")
+
+parser.add_argument("--split-parents", help="Split existing household if parents have two different addresses.", required=False, action='store_true')
 args = parser.parse_args()
 
 print("Input files:")
@@ -46,7 +48,7 @@ for row in utils.load_csv_file(args.district_data, district_data_utils.DISTRICT_
         district_records[row['SystemID']] = row
 
 if preschool_count > 0:
-    print("Ignored %d district records with a school of PreSchool" % (empty_parent_count))
+    print("Ignored %d district records with a school of PreSchool" % (preschool_count))
 if empty_parent_count > 0:
     print("Ignored %d district records with no parents" % (empty_parent_count))
 
@@ -176,24 +178,257 @@ for stu_number, district_record in district_records.items():
             #record for this student to the manual updates file.
             str_list = list()
             str_list.append('New Alternate address specified for existing student. %s %s %s'%
-                  (district_record['Student First Name'], district_record['Student Last Name'].strip(), stu_number))
+                (district_record['Student First Name'], district_record['Student Last Name'].strip(), stu_number))
             str_list.append("Existing DP Record: (%s) %s %s/%s %s"%(dp_donorrecord['DONOR_ID'],
                 dp_donorrecord['FIRST_NAME'],dp_donorrecord['LAST_NAME'], dp_donorrecord['OPT_LINE'],
                 dp_donorrecord['ADDRESS']))
             str_list.append("First Household: %s %s %s %s"%(district_record['Contact 1 First Name'].strip(), district_record['Contact 1 Last Name'].strip(),
-                                               district_record['Contact 1 Relationship'], district_record['Contact 1 Street']))
+                                            district_record['Contact 1 Relationship'], district_record['Contact 1 Street']))
             str_list.append("Second Household: %s %s %s %s"%(district_record['Contact 2 First Name'].strip(), district_record['Contact 2 Last Name'].strip(),
                             district_record['Contact 2 Relationship'], district_record['Contact 2 Street']))
+
+            if args.split_parents:
+                #split the single donor record into at least two.
+                dp_donorrecord_copy = dp_donorrecord.copy()
+
+                if district_record['Contact 1 First Name'] == dp_donorrecord['FIRST_NAME'] and district_record['Contact 1 Last Name']==dp_donorrecord['LAST_NAME']:
+                    #update the address for this dp_donorrecord
+                    dp_donorrecord.update({
+                        'ADDRESS': district_record['Contact 1 Street'].strip(),
+                        'CITY': district_record['Contact 1 City'].strip(),
+                        'STATE': district_record['Contact 1 State'].strip(),
+                        'ZIP': district_record['Contact 1 Zip'].strip(),
+                    })
+                    #if the spouse on DP record is the same as the contact2, then wipe the spouse info from dp.  Otherwise, do not touch.
+                    if district_record['Contact 2 First Name'] == dp_donorrecord['SP_FNAME'] and district_record['Contact 2 Last Name'] == dp_donorrecord['SP_LNAME']:
+                        #remove the spouse from the dp record
+                        salutation = district_data_utils.create_salutation(district_record['Contact 1 First Name'].strip(),
+                                district_record['Contact 1 Last Name'],'','')
+                        informal_sal=district_data_utils.create_informal_sal(district_record['Contact 1 First Name'].strip(),'')
+                        dp_donorrecord.update({
+                            'SP_FNAME':'', "SP_LNAME":"", 'OPT_LINE':'', 'SPOUSE_MOBILE':'','SPOUSE_EMAIL':'','SP_EMPLOYER':'',
+                            'SP_ADVISOR_MEMBER_MULTICODE':'','SP_MAILMERGE_FNAME':'',
+                            'SALUTATION': salutation, 'INFORMAL_SAL': informal_sal
+                        })
+                    str_list.append("Existing DP Record Updated -- NO MANUAL INTERVENTION REQUIRED: (%s) %s %s/%s %s"% (dp_donorrecord['DONOR_ID'], 
+                            dp_donorrecord['FIRST_NAME'], dp_donorrecord['LAST_NAME'], dp_donorrecord['OPT_LINE'], dp_donorrecord['ADDRESS']))
+
+                    sp_salutation = district_data_utils.create_salutation(district_record['Contact 2 First Name'].strip(),
+                            district_record['Contact 2 Last Name'],'','')
+                    sp_informal_sal=district_data_utils.create_informal_sal(district_record['Contact 2 First Name'].strip(),'')
+                    dp_donorrecord_copy.update({
+                        "FIRST_NAME": district_record['Contact 2 First Name'].strip(),
+                        "LAST_NAME": district_record['Contact 2 Last Name'].strip(),
+                        'ADDRESS': district_record['Contact 2 Street'].strip(),
+                        'CITY': district_record['Contact 2 City'].strip(),
+                        'STATE': district_record['Contact 2 State'].strip(),
+                        'ZIP': district_record['Contact 2 Zip'].strip(),
+                        'EMAIL':district_record['Contact 2 Email'].strip(), 
+                        'MOBILE_PHONE': district_record['Contact 2 Phone'], 
+                        'MAILMERGE_FNAME': district_record['Contact 2 First Name'] if district_record['Contact 2 Email'].strip() else 'no email',
+                        'SP_FNAME':'', "SP_LNAME":"", 'OPT_LINE':'', 'SPOUSE_MOBILE':'','SPOUSE_EMAIL':'','SP_EMPLOYER':'',
+                        'SP_ADVISOR_MEMBER_MULTICODE':'','SP_MAILMERGE_FNAME':'',
+                        'SALUTATION': sp_salutation, 'INFORMAL_SAL': sp_informal_sal
+                    })
+                    donor_id = dp.gen_donor_id()
+                    dp_donorrecord_copy['DONOR_ID'] = donor_id
+                    dp.add_donor(dp_donorrecord_copy)
+                    #copy students from original donor record to dp_donorrecord_copy
+                    for student in dp.get_students_for_donor(dp_studentrecord['DONOR_ID']):
+                        dp_student_record=student.copy()
+                        dp_student_record['DONOR_ID'] = donor_id
+                        dp_student_record['OTHER_ID'] = dp.gen_other_id()
+                        dp.add_student(dp_student_record)
+                    str_list.append("New Donor Record Created -- NO MANUAL INTERVENTION REQUIRED: %s %s %s"%(dp_donorrecord_copy['FIRST_NAME'], dp_donorrecord_copy['LAST_NAME'],
+                                            dp_donorrecord_copy['ADDRESS']))
+                elif district_record['Contact 1 First Name'] == dp_donorrecord['SP_FNAME'] and district_record['Contact 1 Last Name'] == dp_donorrecord['SP_LNAME']:
+                    if district_record['Contact 2 First Name'] == dp_donorrecord['FIRST_NAME'] and district_record['Contact 2 Last Name'] == dp_donorrecord['LAST_NAME']:
+                        #keep the dp record for contact 2 (and remove spouse record) and create a new record for contact 1.
+                        dp_donorrecord.update({
+                            'ADDRESS': district_record['Contact 2 Street'].strip(),
+                            'CITY': district_record['Contact 2 City'].strip(),
+                            'STATE': district_record['Contact 2 State'].strip(),
+                            'ZIP': district_record['Contact 2 Zip'].strip(),
+                        })
+                        #remove the spouse from the dp record
+                        salutation = district_data_utils.create_salutation(district_record['Contact 2 First Name'].strip(),
+                                district_record['Contact 2 Last Name'],'','')
+                        informal_sal=district_data_utils.create_informal_sal(district_record['Contact 1 First Name'].strip(),'')
+                        dp_donorrecord.update({
+                            'SP_FNAME':'', "SP_LNAME":"", 'OPT_LINE':'', 'SPOUSE_MOBILE':'','SPOUSE_EMAIL':'','SP_EMPLOYER':'',
+                            'SP_ADVISOR_MEMBER_MULTICODE':'','SP_MAILMERGE_FNAME':'',
+                            'SALUTATION': salutation, 'INFORMAL_SAL': informal_sal
+                        })
+                        str_list.append("Existing DP Record Updated -- NO MANUAL INTERVENTION REQUIRED: (%s) %s %s/%s %s"% (dp_donorrecord['DONOR_ID'], 
+                            dp_donorrecord['FIRST_NAME'], dp_donorrecord['LAST_NAME'], dp_donorrecord['OPT_LINE'], dp_donorrecord['ADDRESS']))
+
+                        #create a new record for contact 1
+                        sp_salutation = district_data_utils.create_salutation(district_record['Contact 1 First Name'].strip(),
+                                district_record['Contact 1 Last Name'],'','')
+                        sp_informal_sal=district_data_utils.create_informal_sal(district_record['Contact 1 First Name'].strip(),'')
+
+                        dp_donorrecord_copy.update({
+                            "FIRST_NAME": district_record['Contact 1 First Name'].strip(),
+                            "LAST_NAME": district_record['Contact 1 Last Name'].strip(),
+                            'ADDRESS': district_record['Contact 1 Street'].strip(),
+                            'CITY': district_record['Contact 1 City'].strip(),
+                            'STATE': district_record['Contact 1 State'].strip(),
+                            'ZIP': district_record['Contact 1 Zip'].strip(),
+                            'EMAIL':district_record['Contact 1 Email'].strip(), 
+                            'MOBILE_PHONE': district_record['Contact 1 Phone'], 
+                            'MAILMERGE_FNAME': district_record['Contact 1 First Name'] if district_record['Contact 1 Email'].strip() else 'no email',
+                            'SP_FNAME':'', "SP_LNAME":"", 'OPT_LINE':'', 'SPOUSE_MOBILE':'','SPOUSE_EMAIL':'','SP_EMPLOYER':'',
+                            'SP_ADVISOR_MEMBER_MULTICODE':'','SP_MAILMERGE_FNAME':'',
+                            'SALUTATION': sp_salutation, 'INFORMAL_SAL': sp_informal_sal
+                        })
+                        str_list.append("New Donor Record Created -- NO MANUAL INTERVENTION REQUIRED: %s %s %s"%(dp_donorrecord_copy['FIRST_NAME'], dp_donorrecord_copy['LAST_NAME'],
+                                            dp_donorrecord_copy['ADDRESS']))
+
+                    else:
+                        #keep the dp record for contact1 keep existing spouse and create a new record for contact 2
+                        dp_donorrecord.update({
+                            'ADDRESS': district_record['Contact 1 Street'].strip(),
+                            'CITY': district_record['Contact 1 City'].strip(),
+                            'STATE': district_record['Contact 1 State'].strip(),
+                            'ZIP': district_record['Contact 1 Zip'].strip(),
+                        })
+                        str_list.append("Existing DP Record Updated -- NO MANUAL INTERVENTION REQUIRED: (%s) %s %s/%s %s"% (dp_donorrecord['DONOR_ID'], 
+                            dp_donorrecord['FIRST_NAME'], dp_donorrecord['LAST_NAME'], dp_donorrecord['OPT_LINE'], dp_donorrecord['ADDRESS']))
+
+                        sp_salutation = district_data_utils.create_salutation(district_record['Contact 2 First Name'].strip(),
+                                district_record['Contact 2 Last Name'],'','')
+                        sp_informal_sal=district_data_utils.create_informal_sal(district_record['Contact 2 First Name'].strip(),'')
+
+                        dp_donorrecord_copy.update({
+                            "FIRST_NAME": district_record['Contact 2 First Name'].strip(),
+                            "LAST_NAME": district_record['Contact 2 Last Name'].strip(),
+                            'ADDRESS': district_record['Contact 2 Street'].strip(),
+                            'CITY': district_record['Contact 2 City'].strip(),
+                            'STATE': district_record['Contact 2 State'].strip(),
+                            'ZIP': district_record['Contact 2 Zip'].strip(),
+                            'EMAIL':district_record['Contact 2 Email'].strip(), 
+                            'MOBILE_PHONE': district_record['Contact 2 Phone'], 
+                            'MAILMERGE_FNAME': district_record['Contact 2 First Name'] if district_record['Contact 2 Email'].strip() else 'no email',
+                            'SP_FNAME':'', "SP_LNAME":"", 'OPT_LINE':'', 'SPOUSE_MOBILE':'','SPOUSE_EMAIL':'','SP_EMPLOYER':'',
+                            'SP_ADVISOR_MEMBER_MULTICODE':'','SP_MAILMERGE_FNAME':'',
+                            'SALUTATION': sp_salutation, 'INFORMAL_SAL': sp_informal_sal
+                        })
+                        str_list.append("New Donor Record Created -- NO MANUAL INTERVENTION REQUIRED: %s %s %s"%(dp_donorrecord_copy['FIRST_NAME'], dp_donorrecord_copy['LAST_NAME'],
+                                            dp_donorrecord_copy['ADDRESS']))
+
+                    donor_id = dp.gen_donor_id()
+                    dp_donorrecord_copy['DONOR_ID'] = donor_id
+                    dp.add_donor(dp_donorrecord_copy)
+                    #copy students from original donor record to dp_donorrecord_copy
+                    for student in dp.get_students_for_donor(dp_studentrecord['DONOR_ID']):
+                        dp_student_record=student.copy()
+                        dp_student_record['DONOR_ID'] = donor_id
+                        dp_student_record['OTHER_ID'] = dp.gen_other_id()
+                        dp.add_student(dp_student_record)                        
+                elif district_record['Contact 2 First Name'] == dp_donorrecord['FIRST_NAME'] and district_record['Contact 2 Last Name'] == dp_donorrecord['LAST_NAME']:
+                    #update dp_donorrecord with address for Contact 2
+                    dp_donorrecord.update({
+                        'ADDRESS': district_record['Contact 2 Street'].strip(),
+                        'CITY': district_record['Contact 2 City'].strip(),
+                        'STATE': district_record['Contact 2 State'].strip(),
+                        'ZIP': district_record['Contact 2 Zip'].strip(),
+                    })
+                    str_list.append("Existing DP Record Updated -- NO MANUAL INTERVENTION REQUIRED: (%s) %s %s/%s %s"% (dp_donorrecord['DONOR_ID'], 
+                            dp_donorrecord['FIRST_NAME'], dp_donorrecord['LAST_NAME'], dp_donorrecord['OPT_LINE'], dp_donorrecord['ADDRESS']))
+
+                    #create a new record for contact 1
+                    sp_salutation = district_data_utils.create_salutation(district_record['Contact 1 First Name'].strip(),
+                            district_record['Contact 1 Last Name'],'','')
+                    sp_informal_sal=district_data_utils.create_informal_sal(district_record['Contact 1 First Name'].strip(),'')
+
+                    dp_donorrecord_copy.update({
+                        "FIRST_NAME": district_record['Contact 1 First Name'].strip(),
+                        "LAST_NAME": district_record['Contact 1 Last Name'].strip(),
+                        'ADDRESS': district_record['Contact 1 Street'].strip(),
+                        'CITY': district_record['Contact 1 City'].strip(),
+                        'STATE': district_record['Contact 1 State'].strip(),
+                        'ZIP': district_record['Contact 1 Zip'].strip(),
+                        'EMAIL':district_record['Contact 1 Email'].strip(), 
+                        'MOBILE_PHONE': district_record['Contact 1 Phone'], 
+                        'MAILMERGE_FNAME': district_record['Contact 1 First Name'] if district_record['Contact 1 Email'].strip() else 'no email',
+                        'SP_FNAME':'', "SP_LNAME":"", 'OPT_LINE':'', 'SPOUSE_MOBILE':'','SPOUSE_EMAIL':'','SP_EMPLOYER':'',
+                        'SP_ADVISOR_MEMBER_MULTICODE':'','SP_MAILMERGE_FNAME':'',
+                        'SALUTATION': sp_salutation, 'INFORMAL_SAL': sp_informal_sal
+                    })
+                    str_list.append("New Donor Record Created -- NO MANUAL INTERVENTION REQUIRED: %s %s %s"%(dp_donorrecord_copy['FIRST_NAME'], dp_donorrecord_copy['LAST_NAME'],
+                                        dp_donorrecord_copy['ADDRESS']))
+
+                    donor_id = dp.gen_donor_id()
+                    dp_donorrecord_copy['DONOR_ID'] = donor_id
+                    dp.add_donor(dp_donorrecord_copy)
+
+                    #copy students from original donor record to dp_donorrecord_copy
+                    for student in dp.get_students_for_donor(dp_studentrecord['DONOR_ID']):
+                        dp_student_record=student.copy()
+                        dp_student_record['DONOR_ID'] = donor_id
+                        dp_student_record['OTHER_ID'] = dp.gen_other_id()
+                        dp.add_student(dp_student_record)                        
+                elif district_record['Contact 2 First Name'] == dp_donorrecord['SP_FNAME'] and district_record['Contact 2 Last Name'] == dp_donorrecord['SP_LNAME']:
+                    #update the dp record with contact 2 address
+                    dp_donorrecord.update({
+                        'ADDRESS': district_record['Contact 2 Street'].strip(),
+                        'CITY': district_record['Contact 2 City'].strip(),
+                        'STATE': district_record['Contact 2 State'].strip(),
+                        'ZIP': district_record['Contact 2 Zip'].strip(),
+                    })
+                    str_list.append("Existing DP Record Updated -- NO MANUAL INTERVENTION REQUIRED: (%s) %s %s/%s %s"% (dp_donorrecord['DONOR_ID'], 
+                            dp_donorrecord['FIRST_NAME'], dp_donorrecord['LAST_NAME'], dp_donorrecord['OPT_LINE'], dp_donorrecord['ADDRESS']))
+
+                    #create a new record for contact 1
+                    sp_salutation = district_data_utils.create_salutation(district_record['Contact 1 First Name'].strip(),
+                            district_record['Contact 1 Last Name'],'','')
+                    sp_informal_sal=district_data_utils.create_informal_sal(district_record['Contact 1 First Name'].strip(),'')
+
+                    dp_donorrecord_copy.update({
+                        "FIRST_NAME": district_record['Contact 1 First Name'].strip(),
+                        "LAST_NAME": district_record['Contact 1 Last Name'].strip(),
+                        'ADDRESS': district_record['Contact 1 Street'].strip(),
+                        'CITY': district_record['Contact 1 City'].strip(),
+                        'STATE': district_record['Contact 1 State'].strip(),
+                        'ZIP': district_record['Contact 1 Zip'].strip(),
+                        'EMAIL':district_record['Contact 1 Email'].strip(), 
+                        'MOBILE_PHONE': district_record['Contact 1 Phone'], 
+                        'MAILMERGE_FNAME': district_record['Contact 1 First Name'] if district_record['Contact 1 Email'].strip() else 'no email',
+                        'SP_FNAME':'', "SP_LNAME":"", 'OPT_LINE':'', 'SPOUSE_MOBILE':'','SPOUSE_EMAIL':'','SP_EMPLOYER':'',
+                        'SP_ADVISOR_MEMBER_MULTICODE':'','SP_MAILMERGE_FNAME':'',
+                        'SALUTATION': sp_salutation, 'INFORMAL_SAL': sp_informal_sal
+                    })
+                    str_list.append("New Donor Record Created -- NO MANUAL INTERVENTION REQUIRED: %s %s %s"%(dp_donorrecord_copy['FIRST_NAME'], dp_donorrecord_copy['LAST_NAME'],
+                                        dp_donorrecord_copy['ADDRESS']))
+
+                    donor_id = dp.gen_donor_id()
+                    dp_donorrecord_copy['DONOR_ID'] = donor_id
+                    dp.add_donor(dp_donorrecord_copy)
+                    #copy students from original donor record to dp_donorrecord_copy
+                    for student in dp.get_students_for_donor(dp_studentrecord['DONOR_ID']):
+                        dp_student_record=student.copy()
+                        dp_student_record['DONOR_ID'] = donor_id
+                        dp_student_record['OTHER_ID'] = dp.gen_other_id()
+                        dp.add_student(dp_student_record)                        
             dp_messages_existingdonorrecords.append('\n'.join(str_list) + '\n\n')
             continue
         else:
-            dp_donorrecord.update({
-                'ADDRESS': district_record['Contact 1 Street'],
-                'CITY': district_record['Contact 1 City'],
-                'STATE': district_record['Contact 1 State'],
-                'ZIP': district_record['Contact 1 Zip']
-            })
-
+            #many parents forget to enter address for both contact 1 and contact 2.  Get the correct address for this household (don't assume contact 1 is filled in.)
+            if district_record['Contact 1 Street'].strip():
+                dp_donorrecord.update({
+                    'ADDRESS': district_record['Contact 1 Street'].strip(),
+                    'CITY': district_record['Contact 1 City'].strip(),
+                    'STATE': district_record['Contact 1 State'].strip(),
+                    'ZIP': district_record['Contact 1 Zip'].strip()
+                })
+            elif district_record['Contact 2 Relationship'] in ('Mother','Father','Stepmother','Stepfather'):
+                dp_donorrecord.update({
+                    'ADDRESS': district_record['Contact 2 Street'].strip(),
+                    'CITY': district_record['Contact 2 City'].strip(),
+                    'STATE': district_record['Contact 2 State'].strip(),
+                    'ZIP': district_record['Contact 2 Zip'].strip()
+                })
+            
         dp_donorrecord_for_update = district_data_utils.create_dp_donorrecord(
             district_record=district_record, school_year=args.school_year)
 
@@ -297,21 +532,47 @@ for stu_number, district_record in district_records.items():
 # Compute manual updates for (most likely) divorced donors
 # The goal is to detect if we have fresher data in the district data, then write out notes in a file to
 # be processed by someone manually interacting with DP.
+# as of 08052022, instead of manual updates, the program will try to detect and update the address automatically.
 dp_messages_donor_ids = set()
 for stu_number, district_record in district_records.items():
     dp_studentrecords = dp.get_students_for_stu_number(stu_number)
     if len(dp_studentrecords) < 2:
         continue
-
-    district_address = '%s %s %s %s' % (district_record['Contact 1 Street'], district_record['Contact 1 City'], district_record['Contact 1 State'], district_record['Contact 1 Zip'][:5])
-
+    #when comparing addresses, we're only going to compare the first 8 chars of street and first 5 of zipcode.
+    #remove all space and - from string. 
+    #Also, sometimes the district address is not complete and only Contact 2 address is filled out.  Use whichever is filled in completely.
+    street = district_record['Contact 1 Street'].strip()
+    district_address_display=''
+    district_address=''
+    if street:
+        district_address = '%s%s' % (district_record['Contact 1 Street'].translate({ord(' '):None, ord('-'):None})[:8].upper().ljust(8), 
+                                    district_record['Contact 1 Zip'][:5])
+        district_address_display = '%s %s, %s %s %s %s' % (district_record['Contact 1 First Name'], district_record['Contact 1 Last Name'],
+            district_record['Contact 1 Street'], district_record['Contact 1 City'], district_record['Contact 1 State'], district_record['Contact 1 Zip'][:5])
+    elif district_record['Contact 2 Relationship'] in ("Mother", "Father", 'Stepmother', 'Stepfather'):
+        district_address = '%s%s' % (district_record['Contact 2 Street'].translate({ord(' '):None, ord('-'):None})[:8].upper().ljust(8), 
+                                    district_record['Contact 2 Zip'][:5])
+        district_address_display = '%s %s, %s %s %s %s' % (district_record['Contact 2 First Name'], district_record['Contact 2 Last Name'], 
+                                    district_record['Contact 2 Street'], district_record['Contact 2 City'], district_record['Contact 2 State'], district_record['Contact 2 Zip'][:5])
+    if district_data_utils.different_household(district_record):
+        district_address_2="%s%s"%(district_record['Contact 2 Street'].translate({ord(' '):None, ord('-'):None})[:8].upper().ljust(8),
+                                   district_record['Contact 2 Zip'][:5])
+        district_address_2_display = '%s %s, %s %s %s %s' % (district_record['Contact 2 First Name'], district_record['Contact 2 Last Name'],
+                                    district_record['Contact 2 Street'], district_record['Contact 2 City'], district_record['Contact 2 State'], district_record['Contact 2 Zip'][:5])
+    else:
+        district_address_2=''
     # Cases we are trying to detect:
     # 1. District address is not present on any of the donors
     dp_addresses_by_donor_id = dict()
+    dp_addresses_by_donor_id_display=dict()
     for dp_studentrecord in dp_studentrecords:
         donor_id = dp_studentrecord['DONOR_ID']
         dp_donorrecord = dp.get_donor(donor_id)
-        dp_addresses_by_donor_id[donor_id] = '%s %s %s %s' % (dp_donorrecord['ADDRESS'], dp_donorrecord['CITY'], dp_donorrecord['STATE'], dp_donorrecord['ZIP'][:5])
+        dp_addresses_by_donor_id[donor_id] = '%s%s' % (dp_donorrecord['ADDRESS'].translate({ord(' '):None, ord('-'):None})[:8].upper().ljust(8), 
+                                                        dp_donorrecord['ZIP'][:5])
+        dp_addresses_by_donor_id_display[donor_id] = '%s %s/%s %s %s %s %s' % (dp_donorrecord['FIRST_NAME'], dp_donorrecord['LAST_NAME'], 
+                                                                                dp_donorrecord['OPT_LINE'],dp_donorrecord['ADDRESS'], 
+                                                                                dp_donorrecord['CITY'], dp_donorrecord['STATE'], dp_donorrecord['ZIP'][:5])
 
     donor_ids_for_student = set(dp_addresses_by_donor_id.keys())
     if dp_messages_donor_ids.issuperset(donor_ids_for_student):
@@ -320,16 +581,67 @@ for stu_number, district_record in district_records.items():
         continue
     else:
         dp_messages_donor_ids.update(donor_ids_for_student)
+    #We're trying to update the donor addresses.
+    flag_address=True
+    if street:
+        #district_address is for contact 1
+        for donor_id, dp_address in dp_addresses_by_donor_id.items():
+            dp_donorrecord=dp.get_donor(donor_id)
+            if ((district_record['Contact 1 First Name'] == dp_donorrecord['FIRST_NAME'] 
+                    and district_record['Contact 1 Last Name'] == dp_donorrecord['LAST_NAME']) 
+                or (district_record['Contact 1 First Name'] == dp_donorrecord['SP_FNAME'] 
+                    and district_record['Contact 1 Last Name'] == dp_donorrecord['SP_LNAME'])):
+                #update the address
+                dp_donorrecord.update({
+                    'ADDRESS': district_record['Contact 1 Street'].strip(),
+                    'CITY': district_record['Contact 1 City'].strip(),
+                    'STATE': district_record['Contact 1 State'].strip(),
+                    'ZIP': district_record['Contact 1 Zip'].strip()
+                })
+                flag_address=False
 
-    flag_address = district_address not in dp_addresses_by_donor_id.values()
+    else:
+        #district_address is for contact 2
+        for donor_id, dp_address in dp_addresses_by_donor_id.items():
+            dp_donorrecord=dp.get_donor(donor_id)
+            if ((district_record['Contact 2 First Name'] == dp_donorrecord['FIRST_NAME'] 
+                    and district_record['Contact 2 Last Name'] == dp_donorrecord['LAST_NAME']) 
+                or (district_record['Contact 2 First Name'] == dp_donorrecord['SP_FNAME'] 
+                    and district_record['Contact 2 Last Name'] == dp_donorrecord['SP_LNAME'])):
+                #update the address
+                dp_donorrecord.update({
+                    'ADDRESS': district_record['Contact 2 Street'].strip(),
+                    'CITY': district_record['Contact 2 City'].strip(),
+                    'STATE': district_record['Contact 2 State'].strip(),
+                    'ZIP': district_record['Contact 2 Zip'].strip()
+                })
+                flag_address=False
+    if district_address_2:
+        #has a separate household
+        for donor_id, dp_address in dp_addresses_by_donor_id.items():
+            dp_donorrecord=dp.get_donor(donor_id)
+            if ((district_record['Contact 2 First Name'] == dp_donorrecord['FIRST_NAME'] 
+                    and district_record['Contact 2 Last Name'] == dp_donorrecord['LAST_NAME']) 
+                or (district_record['Contact 2 First Name'] == dp_donorrecord['SP_FNAME'] 
+                    and district_record['Contact 2 Last Name'] == dp_donorrecord['SP_LNAME'])):
+                #update the address
+                dp_donorrecord.update({
+                    'ADDRESS': district_record['Contact 2 Street'].strip(),
+                    'CITY': district_record['Contact 2 City'].strip(),
+                    'STATE': district_record['Contact 2 State'].strip(),
+                    'ZIP': district_record['Contact 2 Zip'].strip()
+                })
+                flag_address=False
+        
     if flag_address:
         str_list = list()
         str_list.append("Found MANUAL UPDATE for student %s %s (%s) with %d donor records:" %
                         (district_record['Student First Name'], district_record['Student Last Name'].strip(), stu_number, len(dp_studentrecords)))
-        if flag_address:
-            for donor_id, dp_address in dp_addresses_by_donor_id.items():
-                str_list.append("  Donor %s address: %s" % (donor_id, dp_address))
-            str_list.append("  District address: %s" % district_address)
+        for donor_id, dp_address in dp_addresses_by_donor_id_display.items():
+            str_list.append("  Donor %s address: %s" % (donor_id, dp_address))
+        str_list.append("  District address1: %s" % district_address_display)
+        if district_address_2:
+            str_list.append("  District address2: %s" % district_address_2_display)
         dp_messages_existingdonorrecords.append('\n'.join(str_list) + '\n\n')
 
 

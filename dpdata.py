@@ -62,8 +62,15 @@ class DPData:
                 raise ValueError("Found a duplicate OTHER_ID in report 271, the report's assumptions are now violated")
             studentrecord = dict((header, row[header]) for header in DP_REPORT_271_STUDENT_HEADERS)
             self.__fix_studentrecord(studentrecord)
-            self.add_student(studentrecord)
-            self.__unmodified_studentrecords[other_id] = studentrecord.copy()
+            #before adding this student record, check to make sure it's a unique student for the given donor.
+            #sometimes DP has duplicate student records for the same donor.
+            duplicate_other=False
+            for student in self.get_students_for_donor(donor_id):
+                if student['STU_NUMBER'] == row['STU_NUMBER']:
+                    duplicate_other=True
+            if not duplicate_other:
+                self.add_student(studentrecord)
+                self.__unmodified_studentrecords[other_id] = studentrecord.copy()
 
             if row['NOMAIL'] == 'Y':
                 includes_nomail = True
@@ -180,8 +187,11 @@ class DPData:
                     student_count_district += 1
                 elif dp_studentrecord['SCHOOL'] == 'NOBSD':
                     student_count_nobsd += 1
-                    if self.__unmodified_studentrecords[dp_studentrecord['OTHER_ID']]['SCHOOL'] != 'NOBSD':
-                        student_count_converted_to_nobsd += 1
+                    try:
+                        if self.__unmodified_studentrecords[dp_studentrecord['OTHER_ID']]['SCHOOL'] != 'NOBSD':
+                            student_count_converted_to_nobsd += 1
+                    except KeyError:
+                        pass
 
             if dp_donorrecord['NOMAIL'] == 'N' and student_count_district == 0:
                 # Donor has no current students...
