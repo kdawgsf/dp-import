@@ -1,6 +1,6 @@
 ### Prepping for the import
 
-First, make sure you have python 2.7.
+First, make sure you have python 3.7+
 
 Next, create a new directory for the import:
 
@@ -44,7 +44,11 @@ The last time I ran the report, it produced a csv file in utf-8 encoding, which 
 
 There are two ways to run the script: a new-year import and a mid-year import. The main difference is how the script deals with 8th graders that are present in DP but not in the district data. A new-year import marks these students as alums while a mid-year import marks them as having left the district.
 
-In addition to the two input csv files and what kind of import this is, you'll also need to know the school year, which will be formatted like "SY2016-17". Here are some example import commands, as run from the GeneratedFiles directory:
+In addition to the two input csv files and what kind of import this is, you'll also need to know the school year, which will be formatted like "SY2016-17". 
+You also have the option of automatically splitting a donor record if they have divorced.  Use the --split-parents option to do that.  You can run it with or
+without the directive to see what it produces.  Generally, with the option on, it will automatically split donors that would otherwise had to be done manually.
+
+Here are some example import commands, as run from the GeneratedFiles directory:
 
 ```
 # New-year update

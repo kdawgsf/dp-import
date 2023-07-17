@@ -1,4 +1,3 @@
-from __future__ import print_function
 from datetime import datetime
 import argparse
 
@@ -655,8 +654,8 @@ print("Output files:")
 # Output csv files for import into DP
 dp.write_updated_students_file(FILENAME_STUDENT_UPDATES)
 dp.write_new_students_for_existing_donors_file(FILENAME_NEWSTUDENT)
-dp.write_new_students_for_new_donors_file(FILENAME_NEWDONOR)
 dp.write_updated_donors_file(FILENAME_DONOR_UPDATES)
+dp.write_new_students_for_new_donors_file(FILENAME_NEWDONOR)
 
 # Output donor manual updates file
 utils.save_as_text_file(FILENAME_DONOR_UPDATE_MESSAGES, dp_messages_existingdonorrecords)
