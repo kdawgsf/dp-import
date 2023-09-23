@@ -28,13 +28,16 @@ def district_school_to_dp_school(name):
 
 def dp_grade_for_district_record(district_record):
     grade = district_record['Grade']
+    #-1 is pre-school  for special kids.
+    #-2 is TK 
+    #0 is kindergarten
     if grade == 'TK':
-        return '-1'
+        return '-2'
     elif grade == 'K':
         return '0'
 
     grade_int = int(grade)
-    if (grade_int < -1 or grade_int > 8):
+    if (grade_int < -2 or grade_int > 8):
         raise ValueError("Grade %s is out of range" % grade)
     return grade
 

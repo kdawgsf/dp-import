@@ -56,9 +56,10 @@ if empty_parent_count > 0:
 if args.new_year_import:
     for dp_studentrecord in dp.get_students():
         grade = dp_studentrecord['GRADE']
-        if grade and int(grade) < 9:
+        if grade and 0<= int(grade) < 9:
             dp_studentrecord['GRADE'] = str(1 + int(grade))
-
+        if grade and int(grade) in [-1,-2]: #both of these will map to 0.  -1 is old TK and -2 is the new TK
+            dp_studentrecord['GRADE'] = 0
 # Make updates for existing students
 for dp_studentrecord in dp.get_students():
     stu_number = dp_studentrecord['STU_NUMBER']
@@ -694,5 +695,6 @@ Instructions:
                  Value to Update: leave it blank
                  Set Selection Filter:  dpudf.[HOME_SCHOOL] = 'EMPTY' (use a filter)
                  Click "Continue" -- confirm that you are setting to empty string.
-                 
+    Afterwards, have the BCE Staff update the HOME_SCHOOL manually or with an upload script for any student without a HOME_SCHOOL set.
+            
 ''' % (FILENAME_STUDENT_UPDATES, FILENAME_NEWSTUDENT, FILENAME_DONOR_UPDATES, FILENAME_NEWDONOR,  FILENAME_DONOR_UPDATE_MESSAGES))

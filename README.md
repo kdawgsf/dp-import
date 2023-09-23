@@ -17,8 +17,9 @@ The district provides an excel spreadsheet with the data we need. This spreadshe
 
 1. Open the file in Excel
 2. Remove the rows about the column headers
-3. Save csv to our Upload-Archive directory: File -> Save As... -> Format: Comma Separated Values (.csv).
-4. Make sure all information is 'clean'.  Sometimes fields with empty data gets "-", or "#N/A" instead of "". Remove all these bogus data to provide a clean field.
+3. Make any edits to data to make sure they are correct.  We only upload Grades -2 (TK), and 0-8.  Remove any -1 (pre-school).
+4. Save csv to our Upload-Archive directory: File -> Save As... -> Format: Comma Separated Values (.csv).
+5. Make sure all information is 'clean'.  Sometimes fields with empty data gets "-", or "#N/A" instead of "". Remove all these bogus data to provide a clean field.
 
 ### Create DP export file
 
@@ -52,10 +53,10 @@ Here are some example import commands, as run from the GeneratedFiles directory:
 
 ```
 # New-year update
-python ../../district_data_import.py --dp-report ../271_Name_Contacts_Other.csv --district-data ../district_data_20170317.csv --school-year SY2016-17 --new-year-import >script_output.txt
+python3 ../../district_data_import.py --dp-report ../271_Name_Contacts_Other.csv --district-data ../district_data_20170317.csv --school-year SY2016-17 --new-year-import >script_output.txt
 
 # Mid-year update
-python ../../district_data_import.py --dp-report ../271_Name_Contacts_Other.csv --district-data ../district_data_20170317.csv --school-year SY2016-17 --mid-year-update >script_output.txt
+python3 ../../district_data_import.py --dp-report ../271_Name_Contacts_Other.csv --district-data ../district_data_20170317.csv --school-year SY2016-17 --mid-year-update >script_output.txt
 ```
 
 Check the script_output.txt file for info about the export. The script will generate some data export files in the current directory, and the script_output.txt file will contain instructions for importing those files. There are 4 csv files to be imported plus a txt file to be inspected. It's a good idea to inspect the csv files as well to make sure that the operations look sane.

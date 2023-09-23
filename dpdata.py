@@ -208,6 +208,9 @@ class DPData:
                 dp_donorrecord['NOMAIL_REASON'] = 'NU' # Signifies null (cannot set to actual null on import)
                 dp_donorrecord['DONOR_TYPE'] = 'IN'
 
+            #anyone with student in district SHOULD be set with Donortype=IN
+            if student_count_district and not dp_donorrecord['DONOR_TYPE'] == 'IN':
+                dp_donorrecord['DONOR_TYPE']='IN'
             # Legacy data cleanup
             if dp_donorrecord['NOMAIL'] == 'N' and dp_donorrecord['NOMAIL_REASON'] not in ['','NU']:
                 # Empty out NOMAIL_REASON if NOMAIL not set

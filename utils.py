@@ -23,7 +23,7 @@ def load_csv_file(filename, expected_headers):
         print("%s must be a csv file" % (filename))
         sys.exit(1)
     res = []
-    with open(filename, 'rU') as csvfile:
+    with open(filename, 'r') as csvfile:
         reader = csv.DictReader(csvfile)
         validate_headers(filename, expected_headers, reader.fieldnames)
         for row in reader:
