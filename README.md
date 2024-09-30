@@ -16,7 +16,7 @@ mkdir ImportResults
 The district provides an excel spreadsheet with the data we need. This spreadsheet has a some header info above the column headers that we need to remove, and we also need to convert it to csv:
 
 1. Open the file in Excel
-2. Remove the rows about the column headers
+2. Remove the rows above the column headers
 3. Make any edits to data to make sure they are correct.  We only upload Grades -2 (TK), and 0-8.  Remove any -1 (pre-school).
 4. Save csv to our Upload-Archive directory: File -> Save As... -> Format: Comma Separated Values (.csv).
 5. Make sure all information is 'clean'.  Sometimes fields with empty data gets "-", or "#N/A" instead of "". Remove all these bogus data to provide a clean field.
@@ -30,7 +30,7 @@ Now we need to create an export of donors and students from DP:
 3. Click on "271 Name Contacts Other"
 4. On the left-hand sidebar, ensure the Include "NO MAIL" Names checkbox is checked
 5. Hover over the arrow to the right of the "run report" button and click on "export as .csv"
-6. Click OK to run the report without a filter
+6. The filter used will be "Include only student records".  
 7. Copy the downloaded csv file into the Upload-Archive directory
 
 The last time I ran the report, it produced a csv file in utf-8 encoding, which was not compatible with the script. To reformat the csv file, we must take these steps:

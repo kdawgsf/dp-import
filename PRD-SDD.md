@@ -15,7 +15,7 @@
     * For August upload, assumes the student grades for new year has been set correctly in district data
     * Add new students to existing families 
     * Update school information to new school within district 
-    * If student is not in current list or incoming list set school to "NOBCD" 
+    * If student is not in current list or incoming list set school to "NOBSD" 
     * Update home address and e-mail addresses
 1. Create records for new donor families according to following rules
     * New donor record, with DONOR TYPE = Individual
