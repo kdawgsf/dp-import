@@ -8,7 +8,7 @@ DISTRICT_DATA_HEADERS = ['School', 'SystemID', 'Student Last Name', 'Student Fir
                          'Contact 2 First Name', 'Contact 2 Last Name', 'Contact 2 Relationship',
                          'Contact 2 Phone Type', 'Contact 2 Phone',
                          'Contact 2 Street', 'Contact 2 City', 'Contact 2 State', 
-                         'Contact 2 Zip', 'Contact 2 Email']
+                         'Contact 2 Zip', 'Contact 2 Email', 'Photo Opt Out']
 
 # Mapping of district school name to dp school code
 DISTRICT_SCHOOL_MAPPING = {
@@ -50,7 +50,8 @@ def create_dp_studentrecord(district_record):
         'STU_NUMBER': district_record['SystemID'],
         'SCHOOL': district_school_to_dp_school(district_record['School']),
         'GRADE': dp_grade_for_district_record(district_record),
-        'OTHER_DATE': utils.TODAY_STR
+        'OTHER_DATE': utils.TODAY_STR,
+        'PHOTO_OPT_OUT': district_record['Photo Opt Out']
     }
     return dp_studentrecord
 

@@ -67,6 +67,7 @@ for dp_studentrecord in dp.get_students():
         # Returning student
         dp_studentrecord['GRADE'] = district_data_utils.dp_grade_for_district_record(district_records[stu_number])
         dp_studentrecord['SCHOOL'] = district_data_utils.district_school_to_dp_school(district_records[stu_number]['School'])
+        dp_studentrecord['PHOTO_OPT_OUT'] = district_records[stu_number]['Photo Opt Out']
     elif args.new_year_import and dp_studentrecord['GRADE'] == '9' and dp_studentrecord['SCHOOL'] == 'BIS':
         dp_studentrecord['SCHOOL'] = 'ALUM'
         dp_studentrecord['YEARTO'] = str(datetime.now().year)
